@@ -1,6 +1,6 @@
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from urllib3.util.retry import Retry 
 import urllib3
 from bs4 import BeautifulSoup, SoupStrainer
 import csv
@@ -72,13 +72,22 @@ def procesar_grupo(fila):
             
             # Devolver los datos del grupo y su líder
             return {
-                'nombre_grupo': nombre_grupo,
                 'enlace_gruplac': enlace_gruplac_grupo,
-                'nombre_lider': nombre_lider
              
             }
 
     return None
+
+
+def extraer_contenido_tabla(tabla):
+    contenido = []
+    filas = tabla.find_all('tr')[1:]  # Ignorar la fila del título
+    for fila in filas:
+        celdas = fila.find_all('td')
+        if celdas:
+            contenido.append(limpiar_texto(celdas[0].text.strip()))
+    return '\n'.join(contenido)
+
 
 def info_grupo_publicaciones(link_grupo):
     grupo = {}
@@ -103,7 +112,7 @@ def info_grupo_publicaciones(link_grupo):
                 campos = [
                     "año y mes de formacion",
                     "Departamento - ciudad",
-                    "Lider",
+                    "Líder",
                     "Informacion certificada",
                     "Pagina Web",
                     "Email",
@@ -120,9 +129,21 @@ def info_grupo_publicaciones(link_grupo):
                             valor = celdas[1].text.strip().replace('\xa0', ' ').replace('\r\n', ' ')
                             grupo[campo] = valor
 
+
+        # Buscar las tablas específicas
+        tablas = soup.find_all('table')
+        for tabla in tablas:
+            titulo = tabla.find('td', class_='celdaEncabezado')
+            if titulo:
+                if "Plan Estratégico" in titulo.text:
+                    grupo["Plan Estratégico"] = extraer_contenido_tabla(tabla)
+                elif "Líneas de investigación declaradas por el grupo" in titulo.text:
+                    grupo["Líneas de investigación"] = extraer_contenido_tabla(tabla)
+  
+
         # Obtener las tablas de "Artículos publicados" y "Otros artículos publicados"
         tablas_validas = []
-        titulos_validos = ["Artículos publicados", "Otros artículos publicados"]
+        titulos_validos = ["Artículos publicados", "Otros artículos publicados", "Libros publicados", "Capítulos de libro publicados"]
         for tabla in tablas:
             primera_fila = tabla.find('tr')
             if primera_fila:
@@ -141,12 +162,18 @@ def info_grupo_publicaciones(link_grupo):
                 if primera_celda:
                     titulo_tabla = primera_celda.get_text(strip=True)
                     filas_articulos = tabla_valida.find_all('tr')[1:]  # Ignorar el encabezado
+                    
+                    # Crear dos categorías para cada tipo de artículo
                     if titulo_tabla not in grupo:
                         grupo[titulo_tabla] = []
+                        grupo[f"{titulo_tabla} sin chulo"] = []
+                    
                     for fila in filas_articulos:
-                         if fila.find('img'):
-                            celdas_fila = [limpiar_texto(celda.text) for celda in fila.find_all('td')]
+                        celdas_fila = [limpiar_texto(celda.text) for celda in fila.find_all('td')]
+                        if fila.find('img'):
                             grupo[titulo_tabla].append(celdas_fila)
+                        else:
+                            grupo[f"{titulo_tabla} sin chulo"].append(celdas_fila)
 
     except requests.exceptions.RequestException as e:
         print(f"Error al obtener información del grupo: {e}")
@@ -155,8 +182,17 @@ def info_grupo_publicaciones(link_grupo):
 
 # Función para limpiar texto de caracteres no válidos para Excel
 def limpiar_texto(texto):
-    # Elimina caracteres no imprimibles usando una expresión regular
-    return re.sub(r'[\x00-\x1F\x7F-\x9F]', '', texto)
+    # Elimina caracteres no imprimibles
+    texto = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', texto)
+    # Elimina espacios múltiples
+    texto = re.sub(r'\s+', ' ', texto)
+    # Elimina espacios antes de comas y puntos
+    texto = re.sub(r'\s+([,.])', r'\1', texto)
+    # Asegura un espacio después de comas y puntos
+    texto = re.sub(r'([,.])\s*', r'\1 ', texto)
+    # Elimina punto y coma al inicio si existe
+    texto = texto.lstrip(';')
+    return texto.strip()
 
 # Función para obtener y procesar los datos
 def obtener_y_procesar_datos():
@@ -188,37 +224,53 @@ def obtener_y_procesar_datos():
             ws.title = "Resultados Grupos"
 
             # Escribir los encabezados
-            headers = ['Nombre Grupo', 'Enlace GrupLAC', 'Nombre Líder', 'Título', 
-                       'Año y Mes de Formación', 'Departamento - Ciudad', 'Líder', 
-                       'Información Certificada', 'Página Web', 'Email', 'Clasificación', 
-                       'Área de Conocimiento', 'Programa Nacional de Ciencia y Tecnología', 
-                       'Programa Nacional de Ciencia y Tecnología (Secundario)', 'Artículos Publicados', 'Otros Artículos Publicados']
+            headers = ['Nombre Grupo', 
+                    'Año y Mes de Formación', 'Departamento - Ciudad', 'Líder',
+                    'Información Certificada', 'Página Web', 'Email', 'Clasificación', 
+                    'Área de Conocimiento', 'Programa Nacional de Ciencia y Tecnología', 
+                    'Programa Nacional de Ciencia y Tecnología (Secundario)',
+                    'Plan Estratégico', 'Líneas de Investigación', 
+                    'Artículos Publicados', 'Artículos Publicados sin chulo',
+                    'Otros Artículos Publicados', 'Otros Artículos Publicados sin chulo',
+                    'Libros publicados', 'Libros publicados sin chulo',
+                    'Capítulos de libro publicados', 'Capítulos de libro publicados sin chulo']
             for col, header in enumerate(headers, start=1):
                 ws.cell(row=1, column=col, value=header)
 
             # Escribir los datos
             for row, resultado in enumerate(resultados, start=2):
-                ws.cell(row=row, column=1, value=resultado['nombre_grupo'])
-                ws.cell(row=row, column=2, value=resultado['enlace_gruplac'])
-                ws.cell(row=row, column=3, value=resultado['nombre_lider'])
-                ws.cell(row=row, column=4, value=resultado.get('titulo', ''))
-                ws.cell(row=row, column=5, value=resultado.get('año y mes de formacion', ''))
-                ws.cell(row=row, column=6, value=resultado.get('Departamento - ciudad', ''))
-                ws.cell(row=row, column=7, value=resultado.get('Lider', ''))
-                ws.cell(row=row, column=8, value=resultado.get('Informacion certificada', ''))
-                ws.cell(row=row, column=9, value=resultado.get('Pagina Web', ''))
-                ws.cell(row=row, column=10, value=resultado.get('Email', ''))
-                ws.cell(row=row, column=11, value=resultado.get('Clasificacion', ''))
-                ws.cell(row=row, column=12, value=resultado.get('Area de conocimiento', ''))
-                ws.cell(row=row, column=13, value=resultado.get('Programa nacional de ciencia y tecnología', ''))
-                ws.cell(row=row, column=14, value=resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''))
+                ws.cell(row=row, column=1, value=resultado.get('titulo', ''))
+                ws.cell(row=row, column=2, value=resultado.get('año y mes de formacion', ''))
+                ws.cell(row=row, column=3, value=resultado.get('Departamento - ciudad', ''))
+                ws.cell(row=row, column=4, value=resultado.get('Líder', ''))
+                ws.cell(row=row, column=5, value=resultado.get('Informacion certificada', ''))
+                ws.cell(row=row, column=6, value=resultado.get('Pagina Web', ''))
+                ws.cell(row=row, column=7, value=resultado.get('Email', ''))
+                ws.cell(row=row, column=8, value=resultado.get('Clasificacion', ''))
+                ws.cell(row=row, column=9, value=resultado.get('Area de conocimiento', ''))
+                ws.cell(row=row, column=10, value=resultado.get('Programa nacional de ciencia y tecnología', ''))
+                ws.cell(row=row, column=11, value=resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''))
+                ws.cell(row=row, column=12, value=resultado.get("Plan Estratégico", ""))
+                ws.cell(row=row, column=13, value=resultado.get("Líneas de investigación", ""))                
 
                 # Escribir los artículos publicados en una sola celda
-                articulos_publicados = " | ".join(["; ".join(articulo) for articulo in resultado.get("Artículos publicados", [])])
-                otros_articulos_publicados = " | ".join(["; ".join(articulo) for articulo in resultado.get("Otros artículos publicados", [])])
+                articulos_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Artículos publicados", [])])
+                articulos_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Artículos publicados sin chulo", [])])
+                otros_articulos_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Otros artículos publicados", [])])
+                otros_articulos_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Otros artículos publicados sin chulo", [])])
+                libros_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Libros publicados", [])])
+                libros_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Libros publicados sin chulo", [])])
+                capitulos_libros_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Capítulos de libro publicados", [])])
+                capitulos_libros_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Capítulos de libro publicados sin chulo", [])])
 
-                ws.cell(row=row, column=15, value=articulos_publicados)
+                ws.cell(row=row, column=14, value=articulos_publicados)
+                ws.cell(row=row, column=15, value=articulos_publicados_sin_chulo)
                 ws.cell(row=row, column=16, value=otros_articulos_publicados)
+                ws.cell(row=row, column=17, value=otros_articulos_publicados_sin_chulo)
+                ws.cell(row=row, column=18, value=libros_publicados)
+                ws.cell(row=row, column=19, value=libros_publicados_sin_chulo)
+                ws.cell(row=row, column=20, value=capitulos_libros_publicados)
+                ws.cell(row=row, column=21, value=capitulos_libros_publicados_sin_chulo)
 
             # Ajustar el ancho de las columnas
             for col in range(1, 17):
