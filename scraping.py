@@ -45,7 +45,7 @@ url = 'https://scienti.minciencias.gov.co/ciencia-war/busquedaGrupoXInstitucionG
 # Los resultados se van a almacenar en un csv con nombre resultados_grupos
 archivo_salida_json = 'resultados_grupos_json.json'
 archivo_salida_excel = 'resultados_grupos.xlsx'
-
+archivo_salida_excel_miembros = 'miembros_grupos.xlsx'
 
 def procesar_grupo(fila):
     columnas = fila.find_all('td')
@@ -174,11 +174,41 @@ def info_grupo_publicaciones(link_grupo):
                             grupo[titulo_tabla].append(celdas_fila)
                         else:
                             grupo[f"{titulo_tabla} sin chulo"].append(celdas_fila)
-
+        # Extraer información de los miembros
+        grupo['miembros'] = extraer_miembros_grupo(soup, grupo.get('titulo', ''))
     except requests.exceptions.RequestException as e:
         print(f"Error al obtener información del grupo: {e}")
 
     return grupo
+
+def extraer_miembros_grupo(soup, nombre_grupo):
+    miembros = []
+    tabla_miembros = None
+    
+    tablas = soup.find_all('table')
+    for tabla in tablas:
+        primera_fila = tabla.find('tr')
+        if primera_fila:
+            primera_celda = primera_fila.find('td')
+            if primera_celda and "Integrantes del grupo" in primera_celda.get_text(strip=True):
+                tabla_miembros = tabla
+                break
+    
+    if tabla_miembros:
+        filas = tabla_miembros.find_all('tr')[2:]  # Ignorar la fila del título
+        for fila in filas:
+            celdas = fila.find_all('td')
+            if len(celdas) >= 4:
+                nombre_miembro = limpiar_texto(celdas[0].text.strip())
+                vinculacion = limpiar_texto(celdas[3].text.strip())
+                estado = "Activo" if "Actual" in vinculacion else "Inactivo"
+                miembros.append({
+                    'Nombre del grupo': nombre_grupo,
+                    'Nombre del integrante': nombre_miembro,
+                    'Estado': estado
+                })
+    
+    return miembros
 
 # Función para limpiar texto de caracteres no válidos para Excel
 def limpiar_texto(texto):
@@ -219,12 +249,17 @@ def obtener_y_procesar_datos():
                 resultado.update(info_adicional[i])
             
             # Crear un nuevo libro de trabajo Excel y seleccionar la hoja activa
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Resultados Grupos"
+            wb_grupos = openpyxl.Workbook()
+            ws_grupos = wb_grupos.active
+            ws_grupos.title = "Resultados Grupos"
 
-            # Escribir los encabezados
-            headers = [
+            # Crear un nuevo libro de trabajo Excel para miembros
+            wb_miembros = openpyxl.Workbook()
+            ws_miembros = wb_miembros.active
+            ws_miembros.title = "Miembros de Grupos"
+
+            # Escribir los encabezados para el Excel de grupos
+            headers_grupos = [
                 'Nombre Grupo', 
                 'Año y Mes de Formación', 
                 'Departamento - Ciudad', 
@@ -242,11 +277,17 @@ def obtener_y_procesar_datos():
                 'Tipo de Publicación', 
                 'Publicación'
             ]
-            for col, header in enumerate(headers, start=1):
-                ws.cell(row=1, column=col, value=header)
+            for col, header in enumerate(headers_grupos, start=1):
+                ws_grupos.cell(row=1, column=col, value=header)
+
+            # Escribir los encabezados para el Excel de miembros
+            headers_miembros = ['Nombre del grupo', 'Nombre del integrante', 'Estado']
+            for col, header in enumerate(headers_miembros, start=1):
+                ws_miembros.cell(row=1, column=col, value=header)
 
             # Escribir los datos
-            fila_excel = 2
+            fila_excel_grupos = 2
+            fila_excel_miembros = 2
             for resultado in resultados:
                 grupo_info = {
                     'Nombre Grupo': resultado.get('titulo', ''),
@@ -262,54 +303,50 @@ def obtener_y_procesar_datos():
                     'Programa Nacional de Ciencia y Tecnología (Secundario)': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
                     'Plan Estratégico': resultado.get("Plan Estratégico", ""),
                     'Líneas de Investigación': resultado.get("Líneas de investigación", ""),
-                        
                 }
 
-                # Iterar sobre los diferentes tipos de publicaciones
-
-
                 tipos_publicaciones = [
-                        'Artículos publicados', 
-                        'Otros artículos publicados',
-                        'Libros publicados', 
-                        'Capítulos de libro publicados'
-                    ]
+                    'Artículos publicados', 
+                    'Otros artículos publicados',
+                    'Libros publicados', 
+                    'Capítulos de libro publicados'
+                ]
                 
-                # Iterar sobre los diferentes tipos de publicaciones
+                # Escribir datos en el Excel de grupos
                 for tipo_base in tipos_publicaciones:
                     for avalado in [True, False]:
                         tipo_publicacion = tipo_base if avalado else f"{tipo_base} sin chulo"
                         for publicacion in resultado.get(tipo_publicacion, []):
-                            # Escribir la información del grupo
                             for key, value in grupo_info.items():
-                                col_index = headers.index(key) + 1
-                                ws.cell(row=fila_excel, column=col_index, value=value)
+                                col_index = headers_grupos.index(key) + 1
+                                ws_grupos.cell(row=fila_excel_grupos, column=col_index, value=value)
                             
-                            # Determinar si está avalado
                             avalado_texto = "SI" if avalado else "NO"
+                            ws_grupos.cell(row=fila_excel_grupos, column=14, value=avalado_texto)
+                            ws_grupos.cell(row=fila_excel_grupos, column=15, value=tipo_base)
                             
-                            # Escribir si está avalado o no
-                            ws.cell(row=fila_excel, column=14, value=avalado_texto)
-                            
-                            # Escribir el tipo de publicación (sin "sin chulo")
-                            ws.cell(row=fila_excel, column=15, value=tipo_base)
-                            
-                            # Escribir la publicación en la celda
                             publicacion_texto = "; ".join(publicacion)
-                            ws.cell(row=fila_excel, column=16, value=publicacion_texto)
+                            ws_grupos.cell(row=fila_excel_grupos, column=16, value=publicacion_texto)
                             
-                            fila_excel += 1
+                            fila_excel_grupos += 1
 
-            # Ajustar el ancho de las columnas
-            for col in range(1, 17):
-                ws.column_dimensions[get_column_letter(col)].auto_size = True
+                # Escribir datos en el Excel de miembros
+                for miembro in resultado.get('miembros', []):
+                    for col, key in enumerate(headers_miembros, start=1):
+                        ws_miembros.cell(row=fila_excel_miembros, column=col, value=miembro[key])
+                    fila_excel_miembros += 1
 
-            # Guardar el archivo Excel
-            wb.save(archivo_salida_excel)
-            
-            print(f"Se han guardado {fila_excel - 2} publicaciones en {archivo_salida_excel}")
-        else:
-            print("No se encontró la tabla de grupos en la página.")
+            # Ajustar el ancho de las columnas para ambos Excel
+            for ws in [ws_grupos, ws_miembros]:
+                for col in range(1, ws.max_column + 1):
+                    ws.column_dimensions[get_column_letter(col)].auto_size = True
+
+            # Guardar los archivos Excel
+            wb_grupos.save(archivo_salida_excel)
+            wb_miembros.save(archivo_salida_excel_miembros)
+
+            print(f"Se han guardado {fila_excel_grupos - 2} publicaciones en {archivo_salida_excel}")
+            print(f"Se han guardado {fila_excel_miembros - 2} miembros en {archivo_salida_excel_miembros}")
     
     except requests.exceptions.RequestException as e:
         print(f"Error al realizar la solicitud: {e}")
