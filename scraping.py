@@ -224,53 +224,72 @@ def obtener_y_procesar_datos():
             ws.title = "Resultados Grupos"
 
             # Escribir los encabezados
-            headers = ['Nombre Grupo', 
-                    'Año y Mes de Formación', 'Departamento - Ciudad', 'Líder',
-                    'Información Certificada', 'Página Web', 'Email', 'Clasificación', 
-                    'Área de Conocimiento', 'Programa Nacional de Ciencia y Tecnología', 
-                    'Programa Nacional de Ciencia y Tecnología (Secundario)',
-                    'Plan Estratégico', 'Líneas de Investigación', 
-                    'Artículos Publicados', 'Artículos Publicados sin chulo',
-                    'Otros Artículos Publicados', 'Otros Artículos Publicados sin chulo',
-                    'Libros publicados', 'Libros publicados sin chulo',
-                    'Capítulos de libro publicados', 'Capítulos de libro publicados sin chulo']
+            headers = [
+                'Nombre Grupo', 
+                'Año y Mes de Formación', 
+                'Departamento - Ciudad', 
+                'Líder', 
+                'Información Certificada', 
+                'Página Web', 
+                'Email', 
+                'Clasificación', 
+                'Área de Conocimiento', 
+                'Programa Nacional de Ciencia y Tecnología', 
+                'Programa Nacional de Ciencia y Tecnología (Secundario)',
+                'Plan Estratégico', 
+                'Líneas de Investigación',
+                'Avalados', 
+                'Tipo de Publicación', 
+                'Publicación'
+            ]
             for col, header in enumerate(headers, start=1):
                 ws.cell(row=1, column=col, value=header)
 
             # Escribir los datos
-            for row, resultado in enumerate(resultados, start=2):
-                ws.cell(row=row, column=1, value=resultado.get('titulo', ''))
-                ws.cell(row=row, column=2, value=resultado.get('año y mes de formacion', ''))
-                ws.cell(row=row, column=3, value=resultado.get('Departamento - ciudad', ''))
-                ws.cell(row=row, column=4, value=resultado.get('Líder', ''))
-                ws.cell(row=row, column=5, value=resultado.get('Informacion certificada', ''))
-                ws.cell(row=row, column=6, value=resultado.get('Pagina Web', ''))
-                ws.cell(row=row, column=7, value=resultado.get('Email', ''))
-                ws.cell(row=row, column=8, value=resultado.get('Clasificacion', ''))
-                ws.cell(row=row, column=9, value=resultado.get('Area de conocimiento', ''))
-                ws.cell(row=row, column=10, value=resultado.get('Programa nacional de ciencia y tecnología', ''))
-                ws.cell(row=row, column=11, value=resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''))
-                ws.cell(row=row, column=12, value=resultado.get("Plan Estratégico", ""))
-                ws.cell(row=row, column=13, value=resultado.get("Líneas de investigación", ""))                
+            fila_excel = 2
+            for resultado in resultados:
+                grupo_info = {
+                    'Nombre Grupo': resultado.get('titulo', ''),
+                    'Año y Mes de Formación': resultado.get('año y mes de formacion', ''),
+                    'Departamento - Ciudad': resultado.get('Departamento - ciudad', ''),
+                    'Líder': resultado.get('Líder', ''),
+                    'Información Certificada': resultado.get('Informacion certificada', ''),
+                    'Página Web': resultado.get('Pagina Web', ''),
+                    'Email': resultado.get('Email', ''),
+                    'Clasificación': resultado.get('Clasificacion', ''),
+                    'Área de Conocimiento': resultado.get('Area de conocimiento', ''),
+                    'Programa Nacional de Ciencia y Tecnología': resultado.get('Programa nacional de ciencia y tecnología', ''),
+                    'Programa Nacional de Ciencia y Tecnología (Secundario)': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
+                    'Plan Estratégico': resultado.get("Plan Estratégico", ""),
+                    'Líneas de Investigación': resultado.get("Líneas de investigación", ""),
+                        
+                }
 
-                # Escribir los artículos publicados en una sola celda
-                articulos_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Artículos publicados", [])])
-                articulos_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Artículos publicados sin chulo", [])])
-                otros_articulos_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Otros artículos publicados", [])])
-                otros_articulos_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Otros artículos publicados sin chulo", [])])
-                libros_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Libros publicados", [])])
-                libros_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Libros publicados sin chulo", [])])
-                capitulos_libros_publicados = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Capítulos de libro publicados", [])])
-                capitulos_libros_publicados_sin_chulo = "\n\n".join(["; ".join(articulo) for articulo in resultado.get("Capítulos de libro publicados sin chulo", [])])
-
-                ws.cell(row=row, column=14, value=articulos_publicados)
-                ws.cell(row=row, column=15, value=articulos_publicados_sin_chulo)
-                ws.cell(row=row, column=16, value=otros_articulos_publicados)
-                ws.cell(row=row, column=17, value=otros_articulos_publicados_sin_chulo)
-                ws.cell(row=row, column=18, value=libros_publicados)
-                ws.cell(row=row, column=19, value=libros_publicados_sin_chulo)
-                ws.cell(row=row, column=20, value=capitulos_libros_publicados)
-                ws.cell(row=row, column=21, value=capitulos_libros_publicados_sin_chulo)
+                # Iterar sobre los diferentes tipos de publicaciones
+                for tipo_publicacion in [
+                    'Artículos publicados', 
+                    'Artículos publicados sin chulo', 
+                    'Otros artículos publicados', 
+                    'Otros artículos publicados sin chulo',
+                    'Libros publicados', 
+                    'Libros publicados sin chulo',
+                    'Capítulos de libro publicados', 
+                    'Capítulos de libro publicados sin chulo'
+                ]:
+                    for publicacion in resultado.get(tipo_publicacion, []):
+                        # Escribir la información del grupo
+                        for key, value in grupo_info.items():
+                            col_index = headers.index(key) + 1
+                            ws.cell(row=fila_excel, column=col_index, value=value)
+                        
+                        # Escribir el tipo de publicación
+                        ws.cell(row=fila_excel, column=15, value=tipo_publicacion)
+                        
+                        # Escribir la publicación en la celda
+                        publicacion_texto = "; ".join(publicacion)
+                        ws.cell(row=fila_excel, column=16, value=publicacion_texto)
+                        
+                        fila_excel += 1
 
             # Ajustar el ancho de las columnas
             for col in range(1, 17):
@@ -279,12 +298,13 @@ def obtener_y_procesar_datos():
             # Guardar el archivo Excel
             wb.save(archivo_salida_excel)
             
-            print(f"Se han guardado {len(resultados)} resultados en {archivo_salida_excel}")
+            print(f"Se han guardado {fila_excel - 2} publicaciones en {archivo_salida_excel}")
         else:
             print("No se encontró la tabla de grupos en la página.")
     
     except requests.exceptions.RequestException as e:
         print(f"Error al realizar la solicitud: {e}")
+
 
 
 # Ejecutar la función principal
