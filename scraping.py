@@ -266,30 +266,39 @@ def obtener_y_procesar_datos():
                 }
 
                 # Iterar sobre los diferentes tipos de publicaciones
-                for tipo_publicacion in [
-                    'Artículos publicados', 
-                    'Artículos publicados sin chulo', 
-                    'Otros artículos publicados', 
-                    'Otros artículos publicados sin chulo',
-                    'Libros publicados', 
-                    'Libros publicados sin chulo',
-                    'Capítulos de libro publicados', 
-                    'Capítulos de libro publicados sin chulo'
-                ]:
-                    for publicacion in resultado.get(tipo_publicacion, []):
-                        # Escribir la información del grupo
-                        for key, value in grupo_info.items():
-                            col_index = headers.index(key) + 1
-                            ws.cell(row=fila_excel, column=col_index, value=value)
-                        
-                        # Escribir el tipo de publicación
-                        ws.cell(row=fila_excel, column=15, value=tipo_publicacion)
-                        
-                        # Escribir la publicación en la celda
-                        publicacion_texto = "; ".join(publicacion)
-                        ws.cell(row=fila_excel, column=16, value=publicacion_texto)
-                        
-                        fila_excel += 1
+
+
+                tipos_publicaciones = [
+                        'Artículos publicados', 
+                        'Otros artículos publicados',
+                        'Libros publicados', 
+                        'Capítulos de libro publicados'
+                    ]
+                
+                # Iterar sobre los diferentes tipos de publicaciones
+                for tipo_base in tipos_publicaciones:
+                    for avalado in [True, False]:
+                        tipo_publicacion = tipo_base if avalado else f"{tipo_base} sin chulo"
+                        for publicacion in resultado.get(tipo_publicacion, []):
+                            # Escribir la información del grupo
+                            for key, value in grupo_info.items():
+                                col_index = headers.index(key) + 1
+                                ws.cell(row=fila_excel, column=col_index, value=value)
+                            
+                            # Determinar si está avalado
+                            avalado_texto = "SI" if avalado else "NO"
+                            
+                            # Escribir si está avalado o no
+                            ws.cell(row=fila_excel, column=14, value=avalado_texto)
+                            
+                            # Escribir el tipo de publicación (sin "sin chulo")
+                            ws.cell(row=fila_excel, column=15, value=tipo_base)
+                            
+                            # Escribir la publicación en la celda
+                            publicacion_texto = "; ".join(publicacion)
+                            ws.cell(row=fila_excel, column=16, value=publicacion_texto)
+                            
+                            fila_excel += 1
 
             # Ajustar el ancho de las columnas
             for col in range(1, 17):
