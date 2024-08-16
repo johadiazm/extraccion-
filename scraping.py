@@ -3,18 +3,22 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry 
 import urllib3
 from bs4 import BeautifulSoup, SoupStrainer
-import csv
 import os
 from concurrent.futures import ThreadPoolExecutor
 import re
-import json
+import spacy
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 
-import openpyxl
+
 from openpyxl.utils import get_column_letter
 
 
+# Configurar la conexión a MongoDB
+client = MongoClient('mongodb+srv://andressanabria02:uL3Bgc9CCAHiOrgD@cluster0.p02ar.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+db = client['Data_Team']
+grupos_collection = db['Team']
+miembros_collection = db['members']
 
 # Desactivar las advertencias de solicitudes inseguras (solo para pruebas)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -224,6 +228,90 @@ def limpiar_texto(texto):
     texto = texto.lstrip(';')
     return texto.strip()
 
+nlp = spacy.load("es_core_news_sm")
+
+def extraer_info_articulo(texto):
+    # Procesar el texto con spaCy
+    doc = nlp(texto)
+    
+    # Inicializar un diccionario para almacenar la información extraída
+    info = {
+        "tipo": "Artículo publicado",
+        "titulo": "",
+        "revista": "",
+        "pais": "",
+        "issn": "",
+        "año": "",
+        "volumen": "",
+        "fascículo": "",
+        "paginas": "",
+        "doi": "",
+        "autores": []
+    }
+    
+    # Extraer título
+    titulo_match = re.search(r"Titulo articulo:(.*?)(?=Pais:|$)", texto, re.IGNORECASE)
+    if titulo_match:
+        info["titulo"] = titulo_match.group(1).strip()
+    
+    # Extraer revista
+    revista_match = re.search(r"Publicado en revista especializada(.*?)(?=Titulo articulo:|$)", texto, re.IGNORECASE)
+    if revista_match:
+        info["revista"] = revista_match.group(1).strip()
+    
+    # Extraer país
+    pais_match = re.search(r"Pais:(.*?)(?=ISSN:|$)", texto, re.IGNORECASE)
+    if pais_match:
+        info["pais"] = pais_match.group(1).strip()
+    
+    # Extraer ISSN
+    issn_match = re.search(r"ISSN:(.*?)(?=,|$)", texto)
+    if issn_match:
+        info["issn"] = issn_match.group(1).strip()
+    
+    # Extraer año
+    año_match = re.search(r"\b(\d{4})\b", texto)
+    if año_match:
+        info["año"] = año_match.group(1)
+    
+    # Extraer volumen
+    volumen_match = re.search(r"vol(?:umen)?:(\d+)", texto, re.IGNORECASE)
+    if volumen_match:
+        info["volumen"] = volumen_match.group(1)
+    
+    # Extraer fascículo
+    fasciculo_match = re.search(r"fasc:(.+?)(?=págs:|$)", texto, re.IGNORECASE)
+    if fasciculo_match:
+        info["fascículo"] = fasciculo_match.group(1).strip()
+    
+    # Extraer páginas
+    paginas_match = re.search(r"págs:(.+?)(?=DOI:|$)", texto, re.IGNORECASE)
+    if paginas_match:
+        info["paginas"] = paginas_match.group(1).strip()
+    
+    # Extraer DOI
+    doi_match = re.search(r"DOI:(.*?)(?=Autores:|$)", texto, re.IGNORECASE)
+    if doi_match:
+        info["doi"] = doi_match.group(1).strip()
+    
+    # Extraer autores
+    autores_match = re.search(r"Autores:(.*?)$", texto, re.IGNORECASE)
+    if autores_match:
+        autores = autores_match.group(1).split(',')
+        info["autores"] = [autor.strip() for autor in autores]
+    
+    return info
+
+# Ejemplo de uso
+texto_articulo = """Publicado en revista especializada Titulo articulo:Synthesis and characterization of natural rubber/clay nanocomposite to develop electrical safety gloves Pais:reino unido ISSN:2214-7853, 2020 Volumen:33 fasc: N/A págs: 1949 - 1953  DOI:10. 1016/j. matpr. 2020. 05. 795 Autores: MARTIN EMILIO MENDOZA OLIVEROS, CARLOS EDUARDO PINTO SALAMANCA"""
+
+resultado = extraer_info_articulo(texto_articulo)
+print(resultado)
+
+
+
+
+
 # Función para obtener y procesar los datos
 def obtener_y_procesar_datos():
     try:
@@ -248,61 +336,26 @@ def obtener_y_procesar_datos():
             for i, resultado in enumerate(resultados):
                 resultado.update(info_adicional[i])
             
-            # Crear un nuevo libro de trabajo Excel y seleccionar la hoja activa
-            wb_grupos = openpyxl.Workbook()
-            ws_grupos = wb_grupos.active
-            ws_grupos.title = "Resultados Grupos"
-
-            # Crear un nuevo libro de trabajo Excel para miembros
-            wb_miembros = openpyxl.Workbook()
-            ws_miembros = wb_miembros.active
-            ws_miembros.title = "Miembros de Grupos"
-
-            # Escribir los encabezados para el Excel de grupos
-            headers_grupos = [
-                'Nombre Grupo', 
-                'Año y Mes de Formación', 
-                'Departamento - Ciudad', 
-                'Líder', 
-                'Información Certificada', 
-                'Página Web', 
-                'Email', 
-                'Clasificación', 
-                'Área de Conocimiento', 
-                'Programa Nacional de Ciencia y Tecnología', 
-                'Programa Nacional de Ciencia y Tecnología (Secundario)',
-                'Plan Estratégico', 
-                'Líneas de Investigación',
-                'Avalados', 
-                'Tipo de Publicación', 
-                'Publicación'
-            ]
-            for col, header in enumerate(headers_grupos, start=1):
-                ws_grupos.cell(row=1, column=col, value=header)
-
-            # Escribir los encabezados para el Excel de miembros
-            headers_miembros = ['Nombre del grupo', 'Nombre del integrante', 'Estado']
-            for col, header in enumerate(headers_miembros, start=1):
-                ws_miembros.cell(row=1, column=col, value=header)
-
-            # Escribir los datos
-            fila_excel_grupos = 2
-            fila_excel_miembros = 2
+            # Recolectar los documentos para MongoDB
+            grupos_documentos = []
+            miembros_documentos = []
+            
             for resultado in resultados:
                 grupo_info = {
-                    'Nombre Grupo': resultado.get('titulo', ''),
-                    'Año y Mes de Formación': resultado.get('año y mes de formacion', ''),
-                    'Departamento - Ciudad': resultado.get('Departamento - ciudad', ''),
-                    'Líder': resultado.get('Líder', ''),
-                    'Información Certificada': resultado.get('Informacion certificada', ''),
-                    'Página Web': resultado.get('Pagina Web', ''),
-                    'Email': resultado.get('Email', ''),
-                    'Clasificación': resultado.get('Clasificacion', ''),
-                    'Área de Conocimiento': resultado.get('Area de conocimiento', ''),
-                    'Programa Nacional de Ciencia y Tecnología': resultado.get('Programa nacional de ciencia y tecnología', ''),
-                    'Programa Nacional de Ciencia y Tecnología (Secundario)': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
-                    'Plan Estratégico': resultado.get("Plan Estratégico", ""),
-                    'Líneas de Investigación': resultado.get("Líneas de investigación", ""),
+                    'nombre_grupo': resultado.get('titulo', ''),
+                    'año_mes_formacion': resultado.get('año y mes de formacion', ''),
+                    'departamento_ciudad': resultado.get('Departamento - ciudad', ''),
+                    'lider': resultado.get('Líder', ''),
+                    'informacion_certificada': resultado.get('Informacion certificada', ''),
+                    'pagina_web': resultado.get('Pagina Web', ''),
+                    'email': resultado.get('Email', ''),
+                    'clasificacion': resultado.get('Clasificacion', ''),
+                    'area_conocimiento': resultado.get('Area de conocimiento', ''),
+                    'programa_ciencia_tecnologia': resultado.get('Programa nacional de ciencia y tecnología', ''),
+                    'programa_ciencia_tecnologia_secundario': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
+                    'plan_estrategico': resultado.get("Plan Estratégico", ""),
+                    'lineas_investigacion': resultado.get("Líneas de investigación", ""),
+                    'publicaciones': []
                 }
 
                 tipos_publicaciones = [
@@ -312,41 +365,33 @@ def obtener_y_procesar_datos():
                     'Capítulos de libro publicados'
                 ]
                 
-                # Escribir datos en el Excel de grupos
                 for tipo_base in tipos_publicaciones:
                     for avalado in [True, False]:
                         tipo_publicacion = tipo_base if avalado else f"{tipo_base} sin chulo"
                         for publicacion in resultado.get(tipo_publicacion, []):
-                            for key, value in grupo_info.items():
-                                col_index = headers_grupos.index(key) + 1
-                                ws_grupos.cell(row=fila_excel_grupos, column=col_index, value=value)
-                            
-                            avalado_texto = "SI" if avalado else "NO"
-                            ws_grupos.cell(row=fila_excel_grupos, column=14, value=avalado_texto)
-                            ws_grupos.cell(row=fila_excel_grupos, column=15, value=tipo_base)
-                            
-                            publicacion_texto = "; ".join(publicacion)
-                            ws_grupos.cell(row=fila_excel_grupos, column=16, value=publicacion_texto)
-                            
-                            fila_excel_grupos += 1
+                            info_publicacion = extraer_info_articulo("; ".join(publicacion))
+                            info_publicacion['avalado'] = avalado
+                            grupo_info['publicaciones'].append(info_publicacion)
 
-                # Escribir datos en el Excel de miembros
+                grupos_documentos.append(grupo_info)
+
                 for miembro in resultado.get('miembros', []):
-                    for col, key in enumerate(headers_miembros, start=1):
-                        ws_miembros.cell(row=fila_excel_miembros, column=col, value=miembro[key])
-                    fila_excel_miembros += 1
+                    miembro_info = {
+                        'nombre_grupo': grupo_info['nombre_grupo'],
+                        'nombre_integrante': miembro['Nombre del integrante'],
+                        'estado': miembro['Estado']
+                    }
+                    miembros_documentos.append(miembro_info)
 
-            # Ajustar el ancho de las columnas para ambos Excel
-            for ws in [ws_grupos, ws_miembros]:
-                for col in range(1, ws.max_column + 1):
-                    ws.column_dimensions[get_column_letter(col)].auto_size = True
+            # Insertar todos los documentos en MongoDB
+            if grupos_documentos:
+                grupos_collection.insert_many(grupos_documentos)
 
-            # Guardar los archivos Excel
-            wb_grupos.save(archivo_salida_excel)
-            wb_miembros.save(archivo_salida_excel_miembros)
+            if miembros_documentos:
+                miembros_collection.insert_many(miembros_documentos)
 
-            print(f"Se han guardado {fila_excel_grupos - 2} publicaciones en {archivo_salida_excel}")
-            print(f"Se han guardado {fila_excel_miembros - 2} miembros en {archivo_salida_excel_miembros}")
+            print(f"Se han guardado {grupos_collection.count_documents({})} grupos en MongoDB")
+            print(f"Se han guardado {miembros_collection.count_documents({})} miembros en MongoDB")
     
     except requests.exceptions.RequestException as e:
         print(f"Error al realizar la solicitud: {e}")
@@ -355,3 +400,6 @@ def obtener_y_procesar_datos():
 
 # Ejecutar la función principal
 obtener_y_procesar_datos()
+
+
+
