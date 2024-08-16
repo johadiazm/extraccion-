@@ -46,6 +46,10 @@ os.environ['https_proxy'] = ''
 url = 'https://scienti.minciencias.gov.co/ciencia-war/busquedaGrupoXInstitucionGrupos.do?codInst=930&sglPais=&sgDepartamento=&maxRows=152&grupos_tr_=true&grupos_p_=1&grupos_mr_=152'
 
 
+
+
+
+
 # Los resultados se van a almacenar en un csv con nombre resultados_grupos
 archivo_salida_json = 'resultados_grupos_json.json'
 archivo_salida_excel = 'resultados_grupos.xlsx'
@@ -184,7 +188,7 @@ def info_grupo_publicaciones(link_grupo):
         print(f"Error al obtener información del grupo: {e}")
 
     return grupo
-
+#extraccion para los miembos de los grupos
 def extraer_miembros_grupo(soup, nombre_grupo):
     miembros = []
     tabla_miembros = None
@@ -230,13 +234,13 @@ def limpiar_texto(texto):
 
 nlp = spacy.load("es_core_news_sm")
 
-def extraer_info_articulo(texto):
+def extraer_info_articulo(texto,tipo_publicacion):
     # Procesar el texto con spaCy
     doc = nlp(texto)
     
     # Inicializar un diccionario para almacenar la información extraída
     info = {
-        "tipo": "Artículo publicado",
+        "tipo": tipo_publicacion,
         "titulo": "",
         "revista": "",
         "pais": "",
@@ -305,8 +309,7 @@ def extraer_info_articulo(texto):
 # Ejemplo de uso
 texto_articulo = """Publicado en revista especializada Titulo articulo:Synthesis and characterization of natural rubber/clay nanocomposite to develop electrical safety gloves Pais:reino unido ISSN:2214-7853, 2020 Volumen:33 fasc: N/A págs: 1949 - 1953  DOI:10. 1016/j. matpr. 2020. 05. 795 Autores: MARTIN EMILIO MENDOZA OLIVEROS, CARLOS EDUARDO PINTO SALAMANCA"""
 
-resultado = extraer_info_articulo(texto_articulo)
-print(resultado)
+
 
 
 
@@ -369,7 +372,7 @@ def obtener_y_procesar_datos():
                     for avalado in [True, False]:
                         tipo_publicacion = tipo_base if avalado else f"{tipo_base} sin chulo"
                         for publicacion in resultado.get(tipo_publicacion, []):
-                            info_publicacion = extraer_info_articulo("; ".join(publicacion))
+                            info_publicacion = extraer_info_articulo("; ".join(publicacion), tipo_base)
                             info_publicacion['avalado'] = avalado
                             grupo_info['publicaciones'].append(info_publicacion)
 
