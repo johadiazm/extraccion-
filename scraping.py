@@ -188,6 +188,96 @@ def info_grupo_publicaciones(link_grupo):
         print(f"Error al obtener información del grupo: {e}")
 
     return grupo
+
+# Función para limpiar texto de caracteres no válidos para Excel
+def limpiar_texto(texto):
+    # Elimina caracteres no imprimibles
+    texto = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', texto)
+    # Elimina espacios múltiples
+    texto = re.sub(r'\s+', ' ', texto)
+    # Elimina espacios antes de comas y puntos
+    texto = re.sub(r'\s+([,.])', r'\1', texto)
+    # Asegura un espacio después de comas y puntos
+    texto = re.sub(r'([,.])\s*', r'\1 ', texto)
+    # Elimina punto y coma al inicio si existe
+    texto = texto.lstrip(';')
+    return texto.strip()
+
+
+
+def extraer_info_articulo(texto, tipo_publicacion):
+    info = {
+        "tipo": tipo_publicacion,
+        "titulo": "",
+        "revista": "",
+        "pais": "",
+        "issn": "",
+        "año": "",
+        "volumen": "",
+        "fascículo": "",
+        "paginas": "",
+        "doi": "",
+        "autores": []
+    }
+
+    # Compilar las expresiones regulares para mejorar el rendimiento
+    patrones = {
+        "titulo": re.compile(r"Publicado en revista especializada:\s*(.*?)(?=<br>|$)"),
+        "revista_pais": re.compile(r"<br>\s*(.*?),\s*(.*?)\s*ISSN:"),
+        "issn": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
+        "año": re.compile(r"\b(\d{4})\b"),
+        "volumen": re.compile(r"vol:(\d+)"),
+        "fasciculo": re.compile(r"fasc:\s*(N/A|\d+)"),
+        "paginas": re.compile(r"págs:\s*(\d+\s*-\s*\d+)"),
+        "doi": re.compile(r"DOI:\s*([\w\./-]+)"),
+        "autores": re.compile(r"Autores:\s*(.+)$")
+    }
+
+    # Extraer información usando las expresiones regulares compiladas
+    titulo_match = patrones["titulo"].search(texto)
+    if titulo_match:
+        info["titulo"] = titulo_match.group(1).strip()
+
+    revista_pais_match = patrones["revista_pais"].search(texto)
+    if revista_pais_match:
+        info["pais"] = revista_pais_match.group(1).strip()
+        info["revista"] = revista_pais_match.group(2).strip()
+
+    issn_match = patrones["issn"].search(texto)
+    if issn_match:
+        info["issn"] = issn_match.group(1)
+
+    año_match = patrones["año"].search(texto)
+    if año_match:
+        info["año"] = año_match.group(1)
+
+    volumen_match = patrones["volumen"].search(texto)
+    if volumen_match:
+        info["volumen"] = volumen_match.group(1)
+
+    fasciculo_match = patrones["fasciculo"].search(texto)
+    if fasciculo_match:
+        info["fascículo"] = fasciculo_match.group(1)
+
+    paginas_match = patrones["paginas"].search(texto)
+    if paginas_match:
+        info["paginas"] = paginas_match.group(1)
+
+    doi_match = patrones["doi"].search(texto)
+    if doi_match:
+        info["doi"] = doi_match.group(1)
+
+    autores_match = patrones["autores"].search(texto)
+    if autores_match:
+        info["autores"] = [autor.strip() for autor in autores_match.group(1).split(',')]
+
+    return info
+
+# Ejemplo de uso
+texto_articulo = """Publicado en revista especializada Titulo articulo:Synthesis and characterization of natural rubber/clay nanocomposite to develop electrical safety gloves Pais:reino unido ISSN:2214-7853, 2020 Volumen:33 fasc: N/A págs: 1949 - 1953  DOI:10. 1016/j. matpr. 2020. 05. 795 Autores: MARTIN EMILIO MENDOZA OLIVEROS, CARLOS EDUARDO PINTO SALAMANCA"""
+
+
+
 #extraccion para los miembos de los grupos
 def extraer_miembros_grupo(soup, nombre_grupo):
     miembros = []
@@ -217,100 +307,6 @@ def extraer_miembros_grupo(soup, nombre_grupo):
                 })
     
     return miembros
-
-# Función para limpiar texto de caracteres no válidos para Excel
-def limpiar_texto(texto):
-    # Elimina caracteres no imprimibles
-    texto = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', texto)
-    # Elimina espacios múltiples
-    texto = re.sub(r'\s+', ' ', texto)
-    # Elimina espacios antes de comas y puntos
-    texto = re.sub(r'\s+([,.])', r'\1', texto)
-    # Asegura un espacio después de comas y puntos
-    texto = re.sub(r'([,.])\s*', r'\1 ', texto)
-    # Elimina punto y coma al inicio si existe
-    texto = texto.lstrip(';')
-    return texto.strip()
-
-nlp = spacy.load("es_core_news_sm")
-
-def extraer_info_articulo(texto,tipo_publicacion):
-    # Procesar el texto con spaCy
-    doc = nlp(texto)
-    
-    # Inicializar un diccionario para almacenar la información extraída
-    info = {
-        "tipo": tipo_publicacion,
-        "titulo": "",
-        "revista": "",
-        "pais": "",
-        "issn": "",
-        "año": "",
-        "volumen": "",
-        "fascículo": "",
-        "paginas": "",
-        "doi": "",
-        "autores": []
-    }
-    
-    # Extraer título
-    titulo_match = re.search(r"Titulo articulo:(.*?)(?=Pais:|$)", texto, re.IGNORECASE)
-    if titulo_match:
-        info["titulo"] = titulo_match.group(1).strip()
-    
-    # Extraer revista
-    revista_match = re.search(r"Publicado en revista especializada(.*?)(?=Titulo articulo:|$)", texto, re.IGNORECASE)
-    if revista_match:
-        info["revista"] = revista_match.group(1).strip()
-    
-    # Extraer país
-    pais_match = re.search(r"Pais:(.*?)(?=ISSN:|$)", texto, re.IGNORECASE)
-    if pais_match:
-        info["pais"] = pais_match.group(1).strip()
-    
-    # Extraer ISSN
-    issn_match = re.search(r"ISSN:(.*?)(?=,|$)", texto)
-    if issn_match:
-        info["issn"] = issn_match.group(1).strip()
-    
-    # Extraer año
-    año_match = re.search(r"\b(\d{4})\b", texto)
-    if año_match:
-        info["año"] = año_match.group(1)
-    
-    # Extraer volumen
-    volumen_match = re.search(r"vol(?:umen)?:(\d+)", texto, re.IGNORECASE)
-    if volumen_match:
-        info["volumen"] = volumen_match.group(1)
-    
-    # Extraer fascículo
-    fasciculo_match = re.search(r"fasc:(.+?)(?=págs:|$)", texto, re.IGNORECASE)
-    if fasciculo_match:
-        info["fascículo"] = fasciculo_match.group(1).strip()
-    
-    # Extraer páginas
-    paginas_match = re.search(r"págs:(.+?)(?=DOI:|$)", texto, re.IGNORECASE)
-    if paginas_match:
-        info["paginas"] = paginas_match.group(1).strip()
-    
-    # Extraer DOI
-    doi_match = re.search(r"DOI:(.*?)(?=Autores:|$)", texto, re.IGNORECASE)
-    if doi_match:
-        info["doi"] = doi_match.group(1).strip()
-    
-    # Extraer autores
-    autores_match = re.search(r"Autores:(.*?)$", texto, re.IGNORECASE)
-    if autores_match:
-        autores = autores_match.group(1).split(',')
-        info["autores"] = [autor.strip() for autor in autores]
-    
-    return info
-
-# Ejemplo de uso
-texto_articulo = """Publicado en revista especializada Titulo articulo:Synthesis and characterization of natural rubber/clay nanocomposite to develop electrical safety gloves Pais:reino unido ISSN:2214-7853, 2020 Volumen:33 fasc: N/A págs: 1949 - 1953  DOI:10. 1016/j. matpr. 2020. 05. 795 Autores: MARTIN EMILIO MENDOZA OLIVEROS, CARLOS EDUARDO PINTO SALAMANCA"""
-
-
-
 
 
 
