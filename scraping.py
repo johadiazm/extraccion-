@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup, SoupStrainer
 import os
 from concurrent.futures import ThreadPoolExecutor
 import re
-import spacy
+
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 
@@ -222,14 +222,14 @@ def extraer_info_articulo(texto, tipo_publicacion):
 
     # Compilar las expresiones regulares para mejorar el rendimiento
     patrones = {
-        "titulo": re.compile(r"Publicado en revista especializada:\s*(.*?)(?=<br>|$)"),
-        "revista_pais": re.compile(r"<br>\s*(.*?),\s*(.*?)\s*ISSN:"),
+        "titulo": re.compile(r"-\s*(.*?)(?=,)"),
+        "revista_Name": re.compile(r",\s*(.*?)\s*ISSN:"),
         "issn": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
-        "año": re.compile(r"\b(\d{4})\b"),
+        "año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
         "volumen": re.compile(r"vol:(\d+)"),
-        "fasciculo": re.compile(r"fasc:\s*(N/A|\d+)"),
+        "fasciculo": re.compile(r"fasc:\s*(.*?)\s*págs:"),
         "paginas": re.compile(r"págs:\s*(\d+\s*-\s*\d+)"),
-        "doi": re.compile(r"DOI:\s*([\w\./-]+)"),
+        "doi": re.compile(r"DOI:(.*?)Autores:"),
         "autores": re.compile(r"Autores:\s*(.+)$")
     }
 
@@ -238,10 +238,9 @@ def extraer_info_articulo(texto, tipo_publicacion):
     if titulo_match:
         info["titulo"] = titulo_match.group(1).strip()
 
-    revista_pais_match = patrones["revista_pais"].search(texto)
-    if revista_pais_match:
-        info["pais"] = revista_pais_match.group(1).strip()
-        info["revista"] = revista_pais_match.group(2).strip()
+    revista_match = patrones["revista_Name"].search(texto)
+    if revista_match:
+        info["revista"] = revista_match.group(1).strip()
 
     issn_match = patrones["issn"].search(texto)
     if issn_match:
@@ -257,7 +256,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
 
     fasciculo_match = patrones["fasciculo"].search(texto)
     if fasciculo_match:
-        info["fascículo"] = fasciculo_match.group(1)
+        info["fascículo"] = fasciculo_match.group(1).strip()
 
     paginas_match = patrones["paginas"].search(texto)
     if paginas_match:
