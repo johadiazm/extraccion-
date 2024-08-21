@@ -203,7 +203,7 @@ def limpiar_texto(texto):
     texto = texto.lstrip(';')
     return texto.strip()
 
-
+#expresiones regulares para extraer la información de articulos y otros articulos
 
 def extraer_info_articulo(texto, tipo_publicacion):
     info = {
@@ -222,7 +222,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
 
     # Compilar las expresiones regulares para mejorar el rendimiento
     patrones = {
-        "titulo": re.compile(r"-\s*(.*?)(?=,)"),
+        "titulo": re.compile(r"-\s*(.*?)\s*<br>"),
         "revista_Name": re.compile(r",\s*(.*?)\s*ISSN:"),
         "issn": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
         "año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
@@ -275,7 +275,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
 # Ejemplo de uso
 texto_articulo = """Publicado en revista especializada Titulo articulo:Synthesis and characterization of natural rubber/clay nanocomposite to develop electrical safety gloves Pais:reino unido ISSN:2214-7853, 2020 Volumen:33 fasc: N/A págs: 1949 - 1953  DOI:10. 1016/j. matpr. 2020. 05. 795 Autores: MARTIN EMILIO MENDOZA OLIVEROS, CARLOS EDUARDO PINTO SALAMANCA"""
 
-
+#expresiones regulares para extraer la información de un libro
 def extraer_info_libro(texto, tipo_publicacion):
     info = {
         "tipo": tipo_publicacion,
@@ -289,7 +289,7 @@ def extraer_info_libro(texto, tipo_publicacion):
 
     # Compilar las expresiones regulares
     patrones = {
-        "nombre": re.compile(r"(?:Nombre:|Libro resultado de investigación\s*:)\s*(.*?)(?=(?:Pais|Colombia|ISBN|,))", re.IGNORECASE),
+        "nombre": re.compile(r"-\s*(.*?)\s*<br>", re.IGNORECASE),
         "pais": re.compile(r"(?:Pais:|,)\s*(Colombia)", re.IGNORECASE),
         "año": re.compile(r"(?:Año:|,)\s*(\d{4})", re.IGNORECASE),
         "isbn": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
@@ -308,6 +308,46 @@ def extraer_info_libro(texto, tipo_publicacion):
 
     return info
 
+
+# expresiones regulares para extraer la información de un capítulo de libro
+
+def extraer_info_capitulo_libro(texto, tipo_publicacion):
+    info = {
+        "tipo": tipo_publicacion,
+        "nombre": "",
+        "pais": "",
+        "año": "",
+        "titulo_libro": "",
+        "isbn": "",
+        "volumen": "",
+        "paginas": "",
+        "editorial": "",
+        "autores": []
+    }
+
+    # Compilar las expresiones regulares
+    patrones = {
+        "nombre": re.compile(r"-\s*(.*?)\s*<br>", re.IGNORECASE),
+        "pais": re.compile(r"(?:Pais:|,)\s*(Colombia)", re.IGNORECASE),
+        "año": re.compile(r"(?:Año:|,)\s*(\d{4})", re.IGNORECASE),
+        "titulo_libro": re.compile(r"[^,]*?,\s*[^,]*?,\s*([^,]*?)\s*,", re.IGNORECASE),  
+        "isbn": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
+        "volumen": re.compile(r"Vol\.\s*:?\s*(.*?)(?=\s*,|págs:)", re.IGNORECASE),
+        "paginas": re.compile(r"págs:\s*(\d+\s*-\s*\d+)", re.IGNORECASE),
+        "editorial": re.compile(r"(?:Editorial:|Ed\.)\s*(.+?)(?=Autores:)", re.IGNORECASE),
+        "autores": re.compile(r"Autores:\s*(.+)$", re.IGNORECASE)
+    }
+
+    # Extraer información usando las expresiones regulares compiladas
+    for key, patron in patrones.items():
+        match = patron.search(texto)
+        if match:
+            if key == "autores":
+                info[key] = [autor.strip() for autor in match.group(1).split(',')]
+            else:
+                info[key] = match.group(1).strip()
+
+    return info
 
 #extraccion para los miembos de los grupos
 def extraer_miembros_grupo(soup, nombre_grupo):
@@ -399,10 +439,12 @@ def obtener_y_procesar_datos():
                     for avalado in [True, False]:
                         tipo_publicacion = tipo_base if avalado else f"{tipo_base} sin chulo"
                         for publicacion in resultado.get(tipo_publicacion, []):
-                            if tipo_base == 'Artículos publicados':
+                            if tipo_base in ['Artículos publicados', 'Otros artículos publicados']:
                                 info_publicacion = extraer_info_articulo("; ".join(publicacion), tipo_base)
                             elif tipo_base == 'Libros publicados':
                                 info_publicacion = extraer_info_libro("; ".join(publicacion), tipo_base)
+                            elif tipo_base == 'Capítulos de libro publicados':
+                                info_publicacion = extraer_info_capitulo_libro("; ".join(publicacion), tipo_base)
                             else:
                                 # Para otros tipos de publicaciones, guardar la información sin procesar
                                 info_publicacion = {
