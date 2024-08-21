@@ -222,8 +222,9 @@ def extraer_info_articulo(texto, tipo_publicacion):
 
     # Compilar las expresiones regulares para mejorar el rendimiento
     patrones = {
-        "titulo": re.compile(r"-\s*(.*?)\s*<br>"),
+        "titulo": re.compile(r"-\s*([^<]*)", re.IGNORECASE),
         "revista_Name": re.compile(r",\s*(.*?)\s*ISSN:"),
+        "pais": re.compile(r"^.*?,\s*(\w+)", re.IGNORECASE),
         "issn": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
         "año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
         "volumen": re.compile(r"vol:(\d+)"),
@@ -241,6 +242,10 @@ def extraer_info_articulo(texto, tipo_publicacion):
     revista_match = patrones["revista_Name"].search(texto)
     if revista_match:
         info["revista"] = revista_match.group(1).strip()
+        
+    pais_match = patrones["pais"].search(texto)
+    if pais_match:
+        info["pais"] = pais_match.group(1)
 
     issn_match = patrones["issn"].search(texto)
     if issn_match:
