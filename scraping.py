@@ -194,18 +194,21 @@ def limpiar_texto(texto):
     # Elimina caracteres no imprimibles
     texto = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', texto)
     # Elimina espacios múltiples
-    texto = re.sub(r'\s+', ' ', texto)
+    texto = re.sub(r'\s{3,}', ' _', texto)
     # Elimina espacios antes de comas y puntos
     texto = re.sub(r'\s+([,.])', r'\1', texto)
     # Asegura un espacio después de comas y puntos
     texto = re.sub(r'([,.])\s*', r'\1 ', texto)
     # Elimina punto y coma al inicio si existe
     texto = texto.lstrip(';')
+   
     return texto.strip()
 
 #expresiones regulares para extraer la información de articulos y otros articulos
 
+
 def extraer_info_articulo(texto, tipo_publicacion):
+    
     info = {
         "tipo": tipo_publicacion,
         "titulo": "",
@@ -217,12 +220,13 @@ def extraer_info_articulo(texto, tipo_publicacion):
         "fascículo": "",
         "paginas": "",
         "doi": "",
-        "autores": []
+        "autores": [],
+        "todo":""
     }
 
     # Compilar las expresiones regulares para mejorar el rendimiento
     patrones = {
-        "titulo": re.compile(r"-\s*([^<]*)", re.IGNORECASE),
+        "titulo": re.compile(r"-\s*(.*?)\s+_"),    
         "revista_Name": re.compile(r",\s*(.*?)\s*ISSN:"),
         "pais": re.compile(r"^.*?,\s*(\w+)", re.IGNORECASE),
         "issn": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
@@ -231,7 +235,8 @@ def extraer_info_articulo(texto, tipo_publicacion):
         "fasciculo": re.compile(r"fasc:\s*(.*?)\s*págs:"),
         "paginas": re.compile(r"págs:\s*(\d+\s*-\s*\d+)"),
         "doi": re.compile(r"DOI:(.*?)Autores:"),
-        "autores": re.compile(r"Autores:\s*(.+)$")
+        "autores": re.compile(r"Autores:\s*(.+)$"),
+        "todo": re.compile(r"-.*,(?=[^,]*$)")
     }
 
     # Extraer información usando las expresiones regulares compiladas
@@ -270,15 +275,20 @@ def extraer_info_articulo(texto, tipo_publicacion):
     doi_match = patrones["doi"].search(texto)
     if doi_match:
         info["doi"] = doi_match.group(1)
+        
+    todo_match = patrones["todo"].search(texto)
+    if todo_match:
+        info["todo"] = todo_match.group().strip()
 
     autores_match = patrones["autores"].search(texto)
     if autores_match:
         info["autores"] = [autor.strip() for autor in autores_match.group(1).split(',')]
+        
+   
 
     return info
 
-# Ejemplo de uso
-texto_articulo = """Publicado en revista especializada Titulo articulo:Synthesis and characterization of natural rubber/clay nanocomposite to develop electrical safety gloves Pais:reino unido ISSN:2214-7853, 2020 Volumen:33 fasc: N/A págs: 1949 - 1953  DOI:10. 1016/j. matpr. 2020. 05. 795 Autores: MARTIN EMILIO MENDOZA OLIVEROS, CARLOS EDUARDO PINTO SALAMANCA"""
+
 
 #expresiones regulares para extraer la información de un libro
 def extraer_info_libro(texto, tipo_publicacion):
@@ -444,6 +454,7 @@ def obtener_y_procesar_datos():
                     for avalado in [True, False]:
                         tipo_publicacion = tipo_base if avalado else f"{tipo_base} sin chulo"
                         for publicacion in resultado.get(tipo_publicacion, []):
+                          
                             if tipo_base in ['Artículos publicados', 'Otros artículos publicados']:
                                 info_publicacion = extraer_info_articulo("; ".join(publicacion), tipo_base)
                             elif tipo_base == 'Libros publicados':
