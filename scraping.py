@@ -194,7 +194,7 @@ def limpiar_texto(texto):
     # Elimina caracteres no imprimibles
     texto = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', texto)
     # Elimina espacios múltiples
-    texto = re.sub(r'\s{3,}', ' _', texto)
+    texto = re.sub(r'\s{3,}', ' _ ', texto)
     # Elimina espacios antes de comas y puntos
     texto = re.sub(r'\s+([,.])', r'\1', texto)
     # Asegura un espacio después de comas y puntos
@@ -228,14 +228,14 @@ def extraer_info_articulo(texto, tipo_publicacion):
     patrones = {
         "titulo": re.compile(r"-\s*(.*?)\s+_"),    
         "revista_Name": re.compile(r",\s*(.*?)\s*ISSN:"),
-        "pais": re.compile(r"^.*?,\s*(\w+)", re.IGNORECASE),
+        "pais": re.compile(r"_\s*([^_,]+?)(?:\s*$|\s*,|\s*\*)") ,  
         "issn": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
         "año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
         "volumen": re.compile(r"vol:(\d+)"),
         "fasciculo": re.compile(r"fasc:\s*(.*?)\s*págs:"),
         "paginas": re.compile(r"págs:\s*(\d+\s*-\s*\d+)"),
         "doi": re.compile(r"DOI:(.*?)Autores:"),
-        "autores": re.compile(r"Autores:\s*(.+)$"),
+        "autores": re.compile(r"Autores:\s*(.+)$",re.IGNORECASE),
         "todo": re.compile(r"-.*,(?=[^,]*$)")
     }
 
@@ -250,7 +250,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
         
     pais_match = patrones["pais"].search(texto)
     if pais_match:
-        info["pais"] = pais_match.group(1)
+        info["pais"] = pais_match.group(1).strip().rstrip('*').strip()
 
     issn_match = patrones["issn"].search(texto)
     if issn_match:
