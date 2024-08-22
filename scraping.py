@@ -400,6 +400,11 @@ def extraer_miembros_grupo(soup, nombre_grupo):
 # Función para obtener y procesar los datos
 def obtener_y_procesar_datos():
     try:
+        # Eliminar datos existentes de ambas colecciones
+        grupos_collection.delete_many({})
+        miembros_collection.delete_many({})
+        
+
         response = session.get(url, verify=False)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
