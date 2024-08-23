@@ -196,7 +196,7 @@ def limpiar_texto(texto):
     # Elimina espacios múltiples
     texto = re.sub(r'\s{3,}', ' _ ', texto)
     # Elimina espacios antes de comas y puntos
-    texto = re.sub(r'\s+([,.])', r'\1', texto)
+   
     # Asegura un espacio después de comas y puntos
     texto = re.sub(r'([,.])\s*', r'\1 ', texto)
     # Elimina punto y coma al inicio si existe
@@ -228,7 +228,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
     patrones = {
         "titulo": re.compile(r"-\s*(.*?)\s+_"),    
         "revista_Name": re.compile(r",\s*(.*?)\s*ISSN:"),
-        "pais": re.compile(r"_\s*([^_,]+?)(?:\s*$|\s*,|\s*\*)") ,  
+        "pais": re.compile(r"_\s*([^_,]+)\s*,"),
         "issn": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
         "año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
         "volumen": re.compile(r"vol:(\d+)"),
@@ -250,7 +250,14 @@ def extraer_info_articulo(texto, tipo_publicacion):
         
     pais_match = patrones["pais"].search(texto)
     if pais_match:
-        info["pais"] = pais_match.group(1).strip().rstrip('*').strip()
+        pais_extraido = pais_match.group(1).strip()
+        # Verifica si el país extraído tiene un formato válido
+        if pais_extraido and not any(char.isdigit() for char in pais_extraido):
+            info["pais"] = pais_extraido
+        else:
+            info["pais"] = None  # O establece una cadena vacía
+    else:
+        info["pais"] = None  # O establece una cadena vacía
 
     issn_match = patrones["issn"].search(texto)
     if issn_match:
@@ -294,32 +301,41 @@ def extraer_info_articulo(texto, tipo_publicacion):
 def extraer_info_libro(texto, tipo_publicacion):
     info = {
         "tipo": tipo_publicacion,
-        "nombre": "",
+        "titulo": "",
         "pais": "",
         "año": "",
         "isbn": "",
         "editorial": "",
-        "autores": []
+        "autores": [],
+        "todo":""
     }
 
     # Compilar las expresiones regulares
     patrones = {
-        "nombre": re.compile(r"-\s*(.*?)\s*<br>", re.IGNORECASE),
-        "pais": re.compile(r"(?:Pais:|,)\s*(Colombia)", re.IGNORECASE),
-        "año": re.compile(r"(?:Año:|,)\s*(\d{4})", re.IGNORECASE),
+        "titulo": re.compile(r"-\s*(.*?)\s+_"),
+        "pais": re.compile(r"_\s*([^_,]+)\s*,"),
+        "año": re.compile(r"_\s*(\d{4})\s*,"),
         "isbn": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
         "editorial": re.compile(r"(?:Editorial:|Ed\.)\s*(.+?)(?=Autores:)", re.IGNORECASE),
-        "autores": re.compile(r"Autores:\s*(.+)$", re.IGNORECASE)
+        "autores": re.compile(r"Autores:\s*(.+)$", re.IGNORECASE),
+        "todo": re.compile(r"-.*,(?=[^,]*$)")
     }
-
+    todo_match = patrones["todo"].search(texto)
+    if todo_match:
+        info["todo"] = todo_match.group().strip()
+    año_match = patrones["año"].search(texto)
+    if año_match:
+        info["año"] = año_match.group(1)
     # Extraer información usando las expresiones regulares compiladas
     for key, patron in patrones.items():
         match = patron.search(texto)
         if match:
             if key == "autores":
                 info[key] = [autor.strip() for autor in match.group(1).split(',')]
-            else:
+            elif match.groups():  # Verificar si hay grupos capturados
                 info[key] = match.group(1).strip()
+            else:
+                info[key] = match.group(0).strip()  
 
     return info
 
@@ -329,7 +345,7 @@ def extraer_info_libro(texto, tipo_publicacion):
 def extraer_info_capitulo_libro(texto, tipo_publicacion):
     info = {
         "tipo": tipo_publicacion,
-        "nombre": "",
+        "titulo": "",
         "pais": "",
         "año": "",
         "titulo_libro": "",
@@ -337,21 +353,26 @@ def extraer_info_capitulo_libro(texto, tipo_publicacion):
         "volumen": "",
         "paginas": "",
         "editorial": "",
-        "autores": []
+        "autores": [],
+        "todo":""
     }
 
     # Compilar las expresiones regulares
     patrones = {
-        "nombre": re.compile(r"-\s*(.*?)\s*<br>", re.IGNORECASE),
-        "pais": re.compile(r"(?:Pais:|,)\s*(Colombia)", re.IGNORECASE),
+        "titulo": re.compile(r"-\s*(.*?)\s+_"),
+        "pais": re.compile(r"_\s*([^_,]+)\s*,"),
         "año": re.compile(r"(?:Año:|,)\s*(\d{4})", re.IGNORECASE),
         "titulo_libro": re.compile(r"[^,]*?,\s*[^,]*?,\s*([^,]*?)\s*,", re.IGNORECASE),  
         "isbn": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
         "volumen": re.compile(r"Vol\.\s*:?\s*(.*?)(?=\s*,|págs:)", re.IGNORECASE),
         "paginas": re.compile(r"págs:\s*(\d+\s*-\s*\d+)", re.IGNORECASE),
         "editorial": re.compile(r"(?:Editorial:|Ed\.)\s*(.+?)(?=Autores:)", re.IGNORECASE),
-        "autores": re.compile(r"Autores:\s*(.+)$", re.IGNORECASE)
+        "autores": re.compile(r"Autores:\s*(.+)$", re.IGNORECASE),
+        "todo": re.compile(r"-.*,(?=[^,]*$)")
     }
+    todo_match = patrones["todo"].search(texto)
+    if todo_match:
+        info["todo"] = todo_match.group().strip()
 
     # Extraer información usando las expresiones regulares compiladas
     for key, patron in patrones.items():
@@ -359,9 +380,10 @@ def extraer_info_capitulo_libro(texto, tipo_publicacion):
         if match:
             if key == "autores":
                 info[key] = [autor.strip() for autor in match.group(1).split(',')]
-            else:
+            elif match.groups():  # Verificar si hay grupos capturados
                 info[key] = match.group(1).strip()
-
+            else:
+                info[key] = match.group(0).strip()  
     return info
 
 #extraccion para los miembos de los grupos
