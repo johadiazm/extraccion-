@@ -307,6 +307,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
 def extraer_info_libro(texto, tipo_publicacion):
     info = {
         "Tipo": tipo_publicacion,
+        "Tipo Publicación":"",
         "Título": "",
         "País": "",
         "Año": "",
@@ -318,7 +319,8 @@ def extraer_info_libro(texto, tipo_publicacion):
 
     # Compilar las expresiones regulares
     patrones = {
-        "Título": re.compile(r"-\s*(.*?)\s+_"),
+       "Tipo Publicación": re.compile(r"-\s*(.*?):"),
+        "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
         "País": re.compile(r"_\s*([^_,]+)\s*,"),
         "Año": re.compile(r"_\s*(\d{4})\s*,"),
         "ISBN": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
@@ -352,6 +354,7 @@ def extraer_info_libro(texto, tipo_publicacion):
 def extraer_info_capitulo_libro(texto, tipo_publicacion):
     info = {
         "Tipo": tipo_publicacion,
+        "Tipo Publicación":"",
         "Título": "",
         "País": "",
         "Año": "",
@@ -366,7 +369,8 @@ def extraer_info_capitulo_libro(texto, tipo_publicacion):
 
     # Compilar las expresiones regulares
     patrones = {
-        "Título": re.compile(r"-\s*(.*?)\s+_"),
+        "Tipo Publicación": re.compile(r"-\s*(.*?):"),
+        "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
         "País": re.compile(r"_\s*([^_,]+)\s*,"),
         "Año": re.compile(r"(?:Año:|,)\s*(\d{4})", re.IGNORECASE),
         "Título libro": re.compile(r"[^,]*?,\s*[^,]*?,\s*([^,]*?)\s*,", re.IGNORECASE),  
