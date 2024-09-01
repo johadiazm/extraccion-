@@ -230,7 +230,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
         "Tipo Publicación": re.compile(r"-\s*(.*?):"),
         "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
         "Revista": re.compile(r",\s*(.*?)\s*ISSN:"),
-        "País": re.compile(r"_\s*([^_,]+)\s*,"),
+        "País": re.compile(r"_\s*([^_,]+)\s*,",re.IGNORECASE),
         "ISSN": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
         "Año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
         "Volumen": re.compile(r"vol:(\d+)"),
