@@ -121,7 +121,6 @@ def info_grupo_publicaciones(link_grupo):
                     "año y mes de formacion",
                     "Departamento - ciudad",
                     "Líder",
-                    "Informacion certificada",
                     "Pagina Web",
                     "Email",
                     "Clasificacion",
@@ -261,7 +260,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
         if pais_extraido and not any(char.isdigit() for char in pais_extraido):
             info["País"] = pais_extraido
         else:
-            info["País"] = ""  # O establece una cadena vacía
+            info["País"] = " "  # O establece una cadena vacía
     else:
         info["País"] = ""  # O establece una cadena vacía
 
