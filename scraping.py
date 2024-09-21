@@ -118,24 +118,34 @@ def info_grupo_publicaciones(link_grupo):
 
             if len(filas) > 0:
                 campos = [
-                    "año y mes de formacion",
-                    "Departamento - ciudad",
+                    "Año y mes de formación",
+                    "Departamento - Ciudad",
                     "Líder",
-                    "Pagina Web",
-                    "Email",
-                    "Clasificacion",
-                    "Area de conocimiento",
+                    "Página web",
+                    "E-mail",
+                    "Clasificación",
+                    "Área de conocimiento",
                     "Programa nacional de ciencia y tecnología",
                     "Programa nacional de ciencia y tecnología (secundario)"
                 ]
 
-                for i, campo in enumerate(campos, start=1):
-                    if i < len(filas):
-                        celdas = filas[i].find_all('td')
-                        if len(celdas) >= 2:
-                            valor = celdas[1].text.strip().replace('\xa0', ' ').replace('\r\n', ' ')
-                            grupo[campo] = valor
+            campo_indice = 0  # Índice manual para la lista de campos
 
+            for i in range(1, len(filas)):
+                celdas = filas[i].find_all('td')
+                if len(celdas) >= 2:
+                    etiqueta = celdas[0].text.strip()
+
+                    # Ignorar la fila si la etiqueta es "¿La información de este grupo se ha certificado?"
+                    if etiqueta == "¿La información de este grupo se ha certificado?":
+                        continue  # No avanzar el índice del campo
+
+                    # Procesar la fila normalmente
+                    valor = celdas[1].text.strip().replace('\xa0', ' ').replace('\r\n', ' ')
+                    grupo[campos[campo_indice]] = valor
+                    
+                    # Avanzar manualmente el índice del campo
+                    campo_indice += 1
 
         # Buscar las tablas específicas
         tablas = soup.find_all('table')
@@ -260,7 +270,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
         if pais_extraido and not any(char.isdigit() for char in pais_extraido):
             info["País"] = pais_extraido
         else:
-            info["País"] = " "  # O establece una cadena vacía
+            info["País"] = ""  # O establece una cadena vacía
     else:
         info["País"] = ""  # O establece una cadena vacía
 
@@ -477,18 +487,18 @@ def obtener_y_procesar_datos():
             # Recolectar los documentos para MongoDB
             grupos_documentos = []
             miembros_documentos = []
-            
+        
+
             for resultado in resultados:
                 grupo_info = {
                     'nombre_grupo': resultado.get('titulo', ''),
-                    'año_mes_formacion': resultado.get('año y mes de formacion', ''),
-                    'departamento_ciudad': resultado.get('Departamento - ciudad', ''),
+                    'año_mes_formacion': resultado.get('Año y mes de formación', ''),
+                    'departamento_ciudad': resultado.get('Departamento - Ciudad', ''),
                     'lider': resultado.get('Líder', ''),
-                    'informacion_certificada': resultado.get('Informacion certificada', ''),
-                    'pagina_web': resultado.get('Pagina Web', ''),
-                    'email': resultado.get('Email', ''),
-                    'clasificacion': resultado.get('Clasificacion', ''),
-                    'area_conocimiento': resultado.get('Area de conocimiento', ''),
+                    'pagina_web': resultado.get('Página web', ''),
+                    'email': resultado.get('E-mail', ''),
+                    'clasificacion': resultado.get('Clasificación', ''),
+                    'area_conocimiento': resultado.get('Área de conocimiento', ''),
                     'programa_ciencia_tecnologia': resultado.get('Programa nacional de ciencia y tecnología', ''),
                     'programa_ciencia_tecnologia_secundario': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
                     'plan_estrategico': resultado.get("Plan Estratégico", ""),
@@ -550,6 +560,3 @@ def obtener_y_procesar_datos():
 
 # Ejecutar la función principal
 obtener_y_procesar_datos()
-
-
-
