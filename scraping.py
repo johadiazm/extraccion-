@@ -26,7 +26,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Configurar una estrategia de reintentos personalizada
 retry_strategy = Retry(
     total=5,
-    status_forcelist=[429, 500, 502, 503, 504],
+    status_forcelist=[429, 500, 502, 503, 504,443],
     allowed_methods=["HEAD", "GET", "OPTIONS"],
     backoff_factor=1
 )
@@ -298,8 +298,11 @@ def extraer_info_articulo(texto, tipo_publicacion):
 
     autores_match = patrones["Autores"].search(texto)
     if autores_match:
-        info["Autores"] = [autor.strip() for autor in autores_match.group(1).split(',')]
-        
+        autores_raw = autores_match.group(1)
+        # Eliminar los guiones bajos y espacios extra
+        autores_cleaned = re.sub(r'\s*_\s*', ' ', autores_raw)
+        # Dividir los autores y limpiar cada nombre
+        info["Autores"] = [autor.strip() for autor in autores_cleaned.split(',')]        
    
 
     return info
@@ -343,7 +346,12 @@ def extraer_info_libro(texto, tipo_publicacion):
         match = patron.search(texto)
         if match:
             if key == "Autores":
-                info[key] = [autor.strip() for autor in match.group(1).split(',')]
+                autores_raw = match.group(1)
+                autores_cleaned = re.sub(r'\s*_\s*', ' ', autores_raw)
+                info[key] = [autor.strip() for autor in autores_cleaned.split(',')]
+            elif key == "Editorial":
+                editorial = match.group(1).strip()
+                info[key] = editorial[:-1] if editorial.endswith('_') else editorial
             elif match.groups():  # Verificar si hay grupos capturados
                 info[key] = match.group(1).strip()
             else:
@@ -393,7 +401,12 @@ def extraer_info_capitulo_libro(texto, tipo_publicacion):
         match = patron.search(texto)
         if match:
             if key == "Autores":
-                info[key] = [autor.strip() for autor in match.group(1).split(',')]
+                autores_raw = match.group(1)
+                autores_cleaned = re.sub(r'\s*_\s*', ' ', autores_raw)
+                info[key] = [autor.strip() for autor in autores_cleaned.split(',')]
+            elif key == "Editorial":
+                editorial = match.group(1).strip()
+                info[key] = editorial[:-1] if editorial.endswith('_') else editorial
             elif match.groups():  # Verificar si hay grupos capturados
                 info[key] = match.group(1).strip()
             else:
