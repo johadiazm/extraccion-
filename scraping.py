@@ -261,9 +261,9 @@ def extraer_info_articulo(texto, tipo_publicacion):
         if pais_extraido and not any(char.isdigit() for char in pais_extraido):
             info["País"] = pais_extraido
         else:
-            info["País"] = None  # O establece una cadena vacía
+            info["País"] = ""  # O establece una cadena vacía
     else:
-        info["País"] = None  # O establece una cadena vacía
+        info["País"] = ""  # O establece una cadena vacía
 
     issn_match = patrones["ISSN"].search(texto)
     if issn_match:
@@ -287,7 +287,10 @@ def extraer_info_articulo(texto, tipo_publicacion):
 
     doi_match = patrones["DOI"].search(texto)
     if doi_match:
-        info["DOI"] = doi_match.group(1)
+        doi = doi_match.group(1).strip()  # Elimina espacios al inicio y al final
+        if doi.endswith('_'):
+            doi = doi[:-1]  # Elimina el último carácter si es un guion bajo
+        info["DOI"] = doi
         
     todo_match = patrones["todo"].search(texto)
     if todo_match:
