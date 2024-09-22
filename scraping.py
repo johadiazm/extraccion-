@@ -152,7 +152,18 @@ def info_grupo_publicaciones(link_grupo):
 
                     # Procesar la fila normalmente
                     valor = celdas[1].text.strip().replace('\xa0', ' ').replace('\r\n', ' ')
-                    grupo[campos[campo_indice]] = valor
+                    
+                    # Separar departamento y ciudad
+                    if campos[campo_indice] == "Departamento - Ciudad":
+                        match = re.match(r'^(.*?)\s*-\s*(.*?)$', valor)
+                        if match:
+                            grupo["Departamento"] = match.group(1).strip()
+                            grupo["Ciudad"] = match.group(2).strip()
+                        else:
+                            grupo["Departamento"] = valor
+                            grupo["Ciudad"] = ""
+                    else:
+                        grupo[campos[campo_indice]] = valor
                     
                     # Avanzar manualmente el índice del campo
                     campo_indice += 1
@@ -167,7 +178,6 @@ def info_grupo_publicaciones(link_grupo):
                 elif "Líneas de investigación declaradas por el grupo" in titulo.text:
                     grupo["Líneas de investigación"] = extraer_contenido_tabla(tabla, es_lineas_investigacion=True)
 
-        # ... (resto del código existente)
   
 
         # Obtener las tablas de "Artículos publicados" y "Otros artículos publicados"
@@ -512,7 +522,8 @@ def obtener_y_procesar_datos():
                 grupo_info = {
                     'nombre_grupo': resultado.get('titulo', ''),
                     'año_mes_formacion': resultado.get('Año y mes de formación', ''),
-                    'departamento_ciudad': resultado.get('Departamento - Ciudad', ''),
+                    'departamento': resultado.get('Departamento', ''),
+                    'ciudad': resultado.get('Ciudad', ''),
                     'lider': resultado.get('Líder', ''),
                     'pagina_web': resultado.get('Página web', ''),
                     'email': resultado.get('E-mail', ''),
