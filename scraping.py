@@ -87,14 +87,24 @@ def procesar_grupo(fila):
     return None
 
 
-def extraer_contenido_tabla(tabla):
+def extraer_contenido_tabla(tabla, es_lineas_investigacion=False):
     contenido = []
     filas = tabla.find_all('tr')[1:]  # Ignorar la fila del título
     for fila in filas:
         celdas = fila.find_all('td')
         if celdas:
-            contenido.append(limpiar_texto(celdas[0].text.strip()))
-    return '\n'.join(contenido)
+            texto = limpiar_texto(celdas[0].text.strip())
+            if es_lineas_investigacion:
+                # Eliminar el número, espacio y guión del inicio para líneas de investigación
+                texto_limpio = re.sub(r'^\d+\.\s*-\s*', '', texto)
+                contenido.append(texto_limpio)
+            else:
+                contenido.append(texto)
+    
+    if es_lineas_investigacion:
+        return contenido  # Devuelve una lista para líneas de investigación
+    else:
+        return '\n'.join(contenido)
 
 
 def info_grupo_publicaciones(link_grupo):
@@ -118,24 +128,34 @@ def info_grupo_publicaciones(link_grupo):
 
             if len(filas) > 0:
                 campos = [
-                    "año y mes de formacion",
-                    "Departamento - ciudad",
+                    "Año y mes de formación",
+                    "Departamento - Ciudad",
                     "Líder",
-                    "Pagina Web",
-                    "Email",
-                    "Clasificacion",
-                    "Area de conocimiento",
+                    "Página web",
+                    "E-mail",
+                    "Clasificación",
+                    "Área de conocimiento",
                     "Programa nacional de ciencia y tecnología",
                     "Programa nacional de ciencia y tecnología (secundario)"
                 ]
 
-                for i, campo in enumerate(campos, start=1):
-                    if i < len(filas):
-                        celdas = filas[i].find_all('td')
-                        if len(celdas) >= 2:
-                            valor = celdas[1].text.strip().replace('\xa0', ' ').replace('\r\n', ' ')
-                            grupo[campo] = valor
+            campo_indice = 0  # Índice manual para la lista de campos
 
+            for i in range(1, len(filas)):
+                celdas = filas[i].find_all('td')
+                if len(celdas) >= 2:
+                    etiqueta = celdas[0].text.strip()
+
+                    # Ignorar la fila si la etiqueta es "¿La información de este grupo se ha certificado?"
+                    if etiqueta == "¿La información de este grupo se ha certificado?":
+                        continue  # No avanzar el índice del campo
+
+                    # Procesar la fila normalmente
+                    valor = celdas[1].text.strip().replace('\xa0', ' ').replace('\r\n', ' ')
+                    grupo[campos[campo_indice]] = valor
+                    
+                    # Avanzar manualmente el índice del campo
+                    campo_indice += 1
 
         # Buscar las tablas específicas
         tablas = soup.find_all('table')
@@ -145,7 +165,9 @@ def info_grupo_publicaciones(link_grupo):
                 if "Plan Estratégico" in titulo.text:
                     grupo["Plan Estratégico"] = extraer_contenido_tabla(tabla)
                 elif "Líneas de investigación declaradas por el grupo" in titulo.text:
-                    grupo["Líneas de investigación"] = extraer_contenido_tabla(tabla)
+                    grupo["Líneas de investigación"] = extraer_contenido_tabla(tabla, es_lineas_investigacion=True)
+
+        # ... (resto del código existente)
   
 
         # Obtener las tablas de "Artículos publicados" y "Otros artículos publicados"
@@ -260,7 +282,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
         if pais_extraido and not any(char.isdigit() for char in pais_extraido):
             info["País"] = pais_extraido
         else:
-            info["País"] = " "  # O establece una cadena vacía
+            info["País"] = ""  # O establece una cadena vacía
     else:
         info["País"] = ""  # O establece una cadena vacía
 
@@ -417,6 +439,11 @@ def extraer_miembros_grupo(soup, nombre_grupo):
     miembros = []
     tabla_miembros = None
     
+    # Función auxiliar para limpiar el nombre del miembro
+    def limpiar_nombre_miembro(nombre):
+        # Elimina la numeración, el guion y los espacios al principio
+        return re.sub(r'^\d+\.\s*-\s*', '', nombre).strip()
+    
     tablas = soup.find_all('table')
     for tabla in tablas:
         primera_fila = tabla.find('tr')
@@ -432,6 +459,7 @@ def extraer_miembros_grupo(soup, nombre_grupo):
             celdas = fila.find_all('td')
             if len(celdas) >= 4:
                 nombre_miembro = limpiar_texto(celdas[0].text.strip())
+                nombre_miembro = limpiar_nombre_miembro(nombre_miembro)  # Aplicamos la limpieza aquí
                 vinculacion = limpiar_texto(celdas[3].text.strip())
                 estado = "Activo" if "Actual" in vinculacion else "Inactivo"
                 miembros.append({
@@ -477,22 +505,22 @@ def obtener_y_procesar_datos():
             # Recolectar los documentos para MongoDB
             grupos_documentos = []
             miembros_documentos = []
-            
+        
+
             for resultado in resultados:
                 grupo_info = {
                     'nombre_grupo': resultado.get('titulo', ''),
-                    'año_mes_formacion': resultado.get('año y mes de formacion', ''),
-                    'departamento_ciudad': resultado.get('Departamento - ciudad', ''),
+                    'año_mes_formacion': resultado.get('Año y mes de formación', ''),
+                    'departamento_ciudad': resultado.get('Departamento - Ciudad', ''),
                     'lider': resultado.get('Líder', ''),
-                    'informacion_certificada': resultado.get('Informacion certificada', ''),
-                    'pagina_web': resultado.get('Pagina Web', ''),
-                    'email': resultado.get('Email', ''),
-                    'clasificacion': resultado.get('Clasificacion', ''),
-                    'area_conocimiento': resultado.get('Area de conocimiento', ''),
+                    'pagina_web': resultado.get('Página web', ''),
+                    'email': resultado.get('E-mail', ''),
+                    'clasificacion': resultado.get('Clasificación', '')[:1] if resultado.get('Clasificación') else '',
+                    'area_conocimiento': resultado.get('Área de conocimiento', ''),
                     'programa_ciencia_tecnologia': resultado.get('Programa nacional de ciencia y tecnología', ''),
                     'programa_ciencia_tecnologia_secundario': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
                     'plan_estrategico': resultado.get("Plan Estratégico", ""),
-                    'lineas_investigacion': resultado.get("Líneas de investigación", ""),
+                    'lineas_investigacion': resultado.get("Líneas de investigación", []),
                     'publicaciones': []
                 }
 
@@ -550,6 +578,3 @@ def obtener_y_procesar_datos():
 
 # Ejecutar la función principal
 obtener_y_procesar_datos()
-
-
-
