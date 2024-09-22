@@ -87,14 +87,24 @@ def procesar_grupo(fila):
     return None
 
 
-def extraer_contenido_tabla(tabla):
+def extraer_contenido_tabla(tabla, es_lineas_investigacion=False):
     contenido = []
     filas = tabla.find_all('tr')[1:]  # Ignorar la fila del título
     for fila in filas:
         celdas = fila.find_all('td')
         if celdas:
-            contenido.append(limpiar_texto(celdas[0].text.strip()))
-    return '\n'.join(contenido)
+            texto = limpiar_texto(celdas[0].text.strip())
+            if es_lineas_investigacion:
+                # Eliminar el número, espacio y guión del inicio para líneas de investigación
+                texto_limpio = re.sub(r'^\d+\.\s*-\s*', '', texto)
+                contenido.append(texto_limpio)
+            else:
+                contenido.append(texto)
+    
+    if es_lineas_investigacion:
+        return contenido  # Devuelve una lista para líneas de investigación
+    else:
+        return '\n'.join(contenido)
 
 
 def info_grupo_publicaciones(link_grupo):
@@ -155,7 +165,9 @@ def info_grupo_publicaciones(link_grupo):
                 if "Plan Estratégico" in titulo.text:
                     grupo["Plan Estratégico"] = extraer_contenido_tabla(tabla)
                 elif "Líneas de investigación declaradas por el grupo" in titulo.text:
-                    grupo["Líneas de investigación"] = extraer_contenido_tabla(tabla)
+                    grupo["Líneas de investigación"] = extraer_contenido_tabla(tabla, es_lineas_investigacion=True)
+
+        # ... (resto del código existente)
   
 
         # Obtener las tablas de "Artículos publicados" y "Otros artículos publicados"
@@ -427,6 +439,11 @@ def extraer_miembros_grupo(soup, nombre_grupo):
     miembros = []
     tabla_miembros = None
     
+    # Función auxiliar para limpiar el nombre del miembro
+    def limpiar_nombre_miembro(nombre):
+        # Elimina la numeración, el guion y los espacios al principio
+        return re.sub(r'^\d+\.\s*-\s*', '', nombre).strip()
+    
     tablas = soup.find_all('table')
     for tabla in tablas:
         primera_fila = tabla.find('tr')
@@ -442,6 +459,7 @@ def extraer_miembros_grupo(soup, nombre_grupo):
             celdas = fila.find_all('td')
             if len(celdas) >= 4:
                 nombre_miembro = limpiar_texto(celdas[0].text.strip())
+                nombre_miembro = limpiar_nombre_miembro(nombre_miembro)  # Aplicamos la limpieza aquí
                 vinculacion = limpiar_texto(celdas[3].text.strip())
                 estado = "Activo" if "Actual" in vinculacion else "Inactivo"
                 miembros.append({
@@ -497,12 +515,12 @@ def obtener_y_procesar_datos():
                     'lider': resultado.get('Líder', ''),
                     'pagina_web': resultado.get('Página web', ''),
                     'email': resultado.get('E-mail', ''),
-                    'clasificacion': resultado.get('Clasificación', ''),
+                    'clasificacion': resultado.get('Clasificación', '')[:1] if resultado.get('Clasificación') else '',
                     'area_conocimiento': resultado.get('Área de conocimiento', ''),
                     'programa_ciencia_tecnologia': resultado.get('Programa nacional de ciencia y tecnología', ''),
                     'programa_ciencia_tecnologia_secundario': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
                     'plan_estrategico': resultado.get("Plan Estratégico", ""),
-                    'lineas_investigacion': resultado.get("Líneas de investigación", ""),
+                    'lineas_investigacion': resultado.get("Líneas de investigación", []),
                     'publicaciones': []
                 }
 
