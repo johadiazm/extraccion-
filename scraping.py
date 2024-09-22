@@ -308,10 +308,15 @@ def extraer_info_articulo(texto, tipo_publicacion):
     volumen_match = patrones["Volumen"].search(texto)
     if volumen_match:
         info["Volumen"] = volumen_match.group(1)
-#revise que aca es facil de hacerlo mca no se ponga a hacerlo en las expresiones que despues forma un mierdero esas expresiones regulares
+    
     fasciculo_match = patrones["Fascículo"].search(texto)
     if fasciculo_match:
-        info["Fascículo"] = fasciculo_match.group(1).strip()
+        fasciculo = fasciculo_match.group(1).strip()
+        # Reemplazar "N/A" o "N. A" por una cadena vacía
+        if fasciculo.upper() in ["N/A", "N. A"]:
+            info["Fascículo"] = ""
+        else:
+            info["Fascículo"] = fasciculo
 
     paginas_match = patrones["Páginas"].search(texto)
     if paginas_match:
