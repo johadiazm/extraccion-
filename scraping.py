@@ -313,7 +313,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
     if fasciculo_match:
         fasciculo = fasciculo_match.group(1).strip()
         # Reemplazar "N/A" o "N. A" por una cadena vacía
-        if fasciculo.upper() in ["N/A", "N. A"]:
+        if fasciculo.upper() in ["N/A", "N. A", "NA"]:
             info["Fascículo"] = ""
         else:
             info["Fascículo"] = fasciculo
