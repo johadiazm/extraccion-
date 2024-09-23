@@ -9,7 +9,7 @@ import re
 
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-import unicodedata
+
 
 from openpyxl.utils import get_column_letter
 
@@ -238,14 +238,6 @@ def limpiar_texto(texto):
 
 #expresiones regulares para extraer la información de articulos y otros articulos
 
-def is_valid_country_name(name):
-    # Elimina acentos y convierte a minúsculas para la comparación
-    normalized_name = ''.join(c for c in unicodedata.normalize('NFD', name)
-                              if unicodedata.category(c) != 'Mn').lower()
-    
-    # Verifica que no haya dígitos y que la longitud sea razonable
-    return (not any(char.isdigit() for char in normalized_name) and
-            2 <= len(normalized_name) <= 50)
 
 def extraer_info_articulo(texto, tipo_publicacion):
     
@@ -270,7 +262,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
         "Tipo Publicación": re.compile(r"-\s*(.*?):"),
         "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
         "Revista": re.compile(r",\s*(.*?)\s*ISSN:"),
-        "País": re.compile(r"_\s*([^,_]+)(?:,|$)", re.IGNORECASE),
+        "País": re.compile(r"_[^_]*_\s*([^,]+?)\s*,", re.IGNORECASE),
         "ISSN": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
         "Año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
         "Volumen": re.compile(r"vol:(\d+)"),
@@ -297,12 +289,14 @@ def extraer_info_articulo(texto, tipo_publicacion):
     pais_match = patrones["País"].search(texto)
     if pais_match:
         pais_extraido = pais_match.group(1).strip()
-        if is_valid_country_name(pais_extraido):
+        # Verifica si el país extraído tiene un formato válido
+        if pais_extraido and not any(char.isdigit() for char in pais_extraido):
             info["País"] = pais_extraido
         else:
-            info["País"] = ""
+            info["País"] = ""  # O establece una cadena vacía
     else:
-        info["País"] = ""
+        info["País"] = ""  # O establece una cadena vacía
+
     issn_match = patrones["ISSN"].search(texto)
     if issn_match:
         info["ISSN"] = issn_match.group(1)
@@ -314,10 +308,15 @@ def extraer_info_articulo(texto, tipo_publicacion):
     volumen_match = patrones["Volumen"].search(texto)
     if volumen_match:
         info["Volumen"] = volumen_match.group(1)
-#revise que aca es facil de hacerlo mca no se ponga a hacerlo en las expresiones que despues forma un mierdero esas expresiones regulares
+    
     fasciculo_match = patrones["Fascículo"].search(texto)
     if fasciculo_match:
-        info["Fascículo"] = fasciculo_match.group(1).strip()
+        fasciculo = fasciculo_match.group(1).strip()
+        # Reemplazar "N/A" o "N. A" por una cadena vacía
+        if fasciculo.upper() in ["N/A", "N. A", "NA"]:
+            info["Fascículo"] = ""
+        else:
+            info["Fascículo"] = fasciculo
 
     paginas_match = patrones["Páginas"].search(texto)
     if paginas_match:
@@ -365,7 +364,7 @@ def extraer_info_libro(texto, tipo_publicacion):
     patrones = {
        "Tipo Publicación": re.compile(r"-\s*(.*?):"),
         "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
-        "País": re.compile(r"_\s*([^_,]+)\s*,"),
+        "País": re.compile(r"_[^_]*_\s*([^,]+?)\s*,", re.IGNORECASE),
         "Año": re.compile(r"_\s*(\d{4})\s*,"),
         "ISBN": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
         "Editorial": re.compile(r"(?:Editorial:|Ed\.)\s*(.+?)(?=Autores:)", re.IGNORECASE),
@@ -420,7 +419,7 @@ def extraer_info_capitulo_libro(texto, tipo_publicacion):
     patrones = {
         "Tipo Publicación": re.compile(r"-\s*(.*?):"),
         "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
-        "País": re.compile(r"_\s*([^_,]+)\s*,"),
+        "País": re.compile(r"_[^_]*_\s*([^,]+?)\s*,", re.IGNORECASE),
         "Año": re.compile(r"(?:Año:|,)\s*(\d{4})", re.IGNORECASE),
         "Título libro": re.compile(r"[^,]*?,\s*[^,]*?,\s*([^,]*?)\s*,", re.IGNORECASE),  
         "ISBN": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
@@ -596,8 +595,3 @@ def obtener_y_procesar_datos():
 
 # Ejecutar la función principal
 obtener_y_procesar_datos()
-texto = "- Publicado en revista especializada: Planning stand-alone electricity generation systems, a multiple objective optimization and fuzzy decision making approach _ Países Bajos, HELIYON ISSN: 2405-8440, 2020 vol:6 fasc: N/A págs: 1 - 12, DOI:10. 1016/j. heliyon. 2020. e03534 _ Autores: JUAN DAVID RIVERA NIQUEPA, JUAN CARLOS CASTRO GALEANO,"
-
-# Asumiendo que tienes definida la función extraer_info_articulo con los cambios propuestos
-resultado = extraer_info_articulo(texto, "Artículo")
-print(resultado["País"])
