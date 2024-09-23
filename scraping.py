@@ -262,7 +262,7 @@ def extraer_info_articulo(texto, tipo_publicacion):
         "Tipo Publicación": re.compile(r"-\s*(.*?):"),
         "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
         "Revista": re.compile(r",\s*(.*?)\s*ISSN:"),
-        "País": re.compile(r"_\s*([^_,]+?)\s*,",re.IGNORECASE),
+        "País": re.compile(r"_[^_]*_\s*([^,]+?)\s*,", re.IGNORECASE),
         "ISSN": re.compile(r"ISSN:\s*(\d{4}-\d{3}[\dX])"),
         "Año": re.compile(r"ISSN:.*?,\s*(\d{4})\s*vol:"),
         "Volumen": re.compile(r"vol:(\d+)"),
@@ -364,7 +364,7 @@ def extraer_info_libro(texto, tipo_publicacion):
     patrones = {
        "Tipo Publicación": re.compile(r"-\s*(.*?):"),
         "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
-        "País": re.compile(r"_\s*([^_,]+)\s*,"),
+        "País": re.compile(r"_[^_]*_\s*([^,]+?)\s*,", re.IGNORECASE),
         "Año": re.compile(r"_\s*(\d{4})\s*,"),
         "ISBN": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
         "Editorial": re.compile(r"(?:Editorial:|Ed\.)\s*(.+?)(?=Autores:)", re.IGNORECASE),
@@ -419,7 +419,7 @@ def extraer_info_capitulo_libro(texto, tipo_publicacion):
     patrones = {
         "Tipo Publicación": re.compile(r"-\s*(.*?):"),
         "Título": re.compile(r"-\s*(?:[^:]+:)?\s*(.*?)\s+_"),
-        "País": re.compile(r"_\s*([^_,]+)\s*,"),
+        "País": re.compile(r"_[^_]*_\s*([^,]+?)\s*,", re.IGNORECASE),
         "Año": re.compile(r"(?:Año:|,)\s*(\d{4})", re.IGNORECASE),
         "Título libro": re.compile(r"[^,]*?,\s*[^,]*?,\s*([^,]*?)\s*,", re.IGNORECASE),  
         "ISBN": re.compile(r"ISBN:\s*([\d-]+)", re.IGNORECASE),
