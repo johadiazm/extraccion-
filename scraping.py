@@ -12,7 +12,7 @@ from pymongo.errors import ConnectionFailure
 
 
 from openpyxl.utils import get_column_letter
-
+from datetime import datetime
 
 # Configurar la conexión a MongoDB
 client = MongoClient('mongodb+srv://andressanabria02:uL3Bgc9CCAHiOrgD@cluster0.p02ar.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
@@ -594,4 +594,20 @@ def obtener_y_procesar_datos():
 
 
 # Ejecutar la función principal
-obtener_y_procesar_datos()
+def actualizar_base_datos():
+    """
+    Función principal para actualizar la base de datos.
+    Esta función será llamada por el Cron Job de Render.
+    """
+    print(f"Iniciando actualización de la base de datos: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    try:
+        obtener_y_procesar_datos()
+        print(f"Actualización completada con éxito: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        return True
+    except Exception as e:
+        print(f"Error durante la actualización: {e}")
+        return False
+
+# Si el script se ejecuta directamente, ejecutar la actualización
+if __name__ == "__main__":
+    actualizar_base_datos()
