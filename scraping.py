@@ -479,7 +479,7 @@ def extraer_miembros_grupo(soup, nombre_grupo):
                 vinculacion = limpiar_texto(celdas[3].text.strip())
                 estado = "Activo" if "Actual" in vinculacion else "Inactivo"
                 miembros.append({
-                    'Nombre del grupo': nombre_grupo,
+                    
                     'Nombre del integrante': nombre_miembro,
                     'Estado': estado
                 })
@@ -538,6 +538,7 @@ def obtener_y_procesar_datos():
                     'programa_ciencia_tecnologia_secundario': resultado.get('Programa nacional de ciencia y tecnología (secundario)', ''),
                     'plan_estrategico': resultado.get("Plan Estratégico", ""),
                     'lineas_investigacion': resultado.get("Líneas de investigación", []),
+                    'miembros': resultado.get('miembros', []) ,
                     'publicaciones': []
                 }
 
@@ -582,8 +583,7 @@ def obtener_y_procesar_datos():
             if grupos_documentos:
                 grupos_collection.insert_many(grupos_documentos)
 
-            if miembros_documentos:
-                miembros_collection.insert_many(miembros_documentos)
+          
 
             print(f"Se han guardado {grupos_collection.count_documents({})} grupos en MongoDB")
             print(f"Se han guardado {miembros_collection.count_documents({})} miembros en MongoDB")
