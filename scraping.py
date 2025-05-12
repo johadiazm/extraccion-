@@ -15,10 +15,12 @@ from openpyxl.utils import get_column_letter
 from datetime import datetime
 
 # Configurar la conexión a MongoDB
-client = MongoClient('mongodb+srv://andressanabria02:uL3Bgc9CCAHiOrgD@cluster0.p02ar.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+client = MongoClient('mongodb+srv://johadiazm11:vxkrVr9yRrhkX7rN@cluster0.1b7nqcb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 db = client['Data_Team']
 grupos_collection = db['Team']
-miembros_collection = db['members']
+miembros_collection = db['Miembros']
+publicaciones_collection = db['Publicaciones']
+
 
 # Desactivar las advertencias de solicitudes inseguras (solo para pruebas)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -46,14 +48,9 @@ os.environ['https_proxy'] = ''
 url = 'https://scienti.minciencias.gov.co/ciencia-war/busquedaGrupoXInstitucionGrupos.do?codInst=930&sglPais=&sgDepartamento=&maxRows=152&grupos_tr_=true&grupos_p_=1&grupos_mr_=152'
 
 
-
-
-
-
 # Los resultados se van a almacenar en un csv con nombre resultados_grupos
 archivo_salida_json = 'resultados_grupos_json.json'
 archivo_salida_excel = 'resultados_grupos.xlsx'
-archivo_salida_excel_miembros = 'miembros_grupos.xlsx'
 
 def procesar_grupo(fila):
     columnas = fila.find_all('td')
